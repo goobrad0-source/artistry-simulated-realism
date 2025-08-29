@@ -8,89 +8,81 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Professional Art App Dark Theme */
+    --background: 220 15% 8%;
+    --foreground: 220 10% 92%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 15% 10%;
+    --card-foreground: 220 10% 92%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 15% 12%;
+    --popover-foreground: 220 10% 92%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 270 60% 65%;
+    --primary-foreground: 220 15% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 220 10% 85%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 15% 12%;
+    --muted-foreground: 220 8% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 270 60% 65%;
+    --accent-foreground: 220 15% 8%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 220 10% 92%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 15% 18%;
+    --input: 220 15% 15%;
+    --ring: 270 60% 65%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Art App Specific Colors */
+    --canvas-surface: 45 15% 85%;
+    --tool-metal: 220 5% 40%;
+    --tool-wood: 30 25% 35%;
+    --tool-rubber: 350 15% 25%;
+    --paint-red: 0 85% 55%;
+    --paint-blue: 220 85% 55%;
+    --paint-yellow: 50 85% 55%;
+    --paint-green: 120 85% 45%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Gradients */
+    --gradient-canvas: linear-gradient(135deg, hsl(var(--canvas-surface)), hsl(45 20% 90%));
+    --gradient-tool: linear-gradient(145deg, hsl(var(--tool-metal)), hsl(220 8% 30%));
+    --gradient-glow: radial-gradient(circle, hsl(var(--primary) / 0.3), transparent);
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Shadows */
+    --shadow-tool: 0 4px 20px hsl(var(--primary) / 0.2);
+    --shadow-canvas: 0 8px 40px hsl(220 15% 5% / 0.6);
+    --shadow-ui: 0 2px 15px hsl(220 15% 5% / 0.4);
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Physics Properties */
+    --damping-factor: 0.85;
+    --elastic-force: 1.2;
+    --pressure-sensitivity: 2.5;
 
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 220 15% 10%;
+    --sidebar-foreground: 220 10% 85%;
+    --sidebar-primary: 270 60% 65%;
+    --sidebar-primary-foreground: 220 15% 8%;
+    --sidebar-accent: 220 15% 15%;
+    --sidebar-accent-foreground: 220 10% 85%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 270 60% 65%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+  .light {
+    /* Light mode for when needed */
+    --background: 220 10% 96%;
+    --foreground: 220 15% 12%;
+    --card: 220 10% 98%;
+    --card-foreground: 220 15% 12%;
+    --primary: 270 60% 45%;
+    --primary-foreground: 220 10% 96%;
+    --canvas-surface: 45 15% 95%;
   }
 }
 
@@ -99,7 +91,53 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html, body {
+    @apply bg-background text-foreground overflow-hidden;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Art App Specific Styles */
+  .canvas-surface {
+    background: var(--gradient-canvas);
+    box-shadow: var(--shadow-canvas);
+  }
+
+  .tool-surface {
+    background: var(--gradient-tool);
+    box-shadow: var(--shadow-tool);
+  }
+
+  .ui-panel {
+    backdrop-filter: blur(12px);
+    background: hsl(var(--card) / 0.9);
+    box-shadow: var(--shadow-ui);
+  }
+
+  /* Smooth animations for tool interactions */
+  .tool-transition {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);  
+  }
+
+  .pressure-responsive {
+    transition: transform 0.1s ease-out;
+  }
+
+  /* Custom scrollbar for tool panels */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground));
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent));
   }
 }

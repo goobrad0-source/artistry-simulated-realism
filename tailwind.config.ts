@@ -61,6 +61,21 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Art App Specific Colors
+				canvas: {
+					surface: 'hsl(var(--canvas-surface))'
+				},
+				tool: {
+					metal: 'hsl(var(--tool-metal))',
+					wood: 'hsl(var(--tool-wood))',
+					rubber: 'hsl(var(--tool-rubber))'
+				},
+				paint: {
+					red: 'hsl(var(--paint-red))',
+					blue: 'hsl(var(--paint-blue))',
+					yellow: 'hsl(var(--paint-yellow))',
+					green: 'hsl(var(--paint-green))'
 				}
 			},
 			borderRadius: {
