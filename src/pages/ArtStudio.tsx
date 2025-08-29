@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ArtCanvas3D } from '@/components/ArtCanvas3D';
 import { ToolPanel } from '@/components/ToolPanel';
+import { ToolBar, RightSidebar, ToolType, InteractionMode } from '@/components/ToolBar';
+import { Timeline } from '@/components/Timeline';
+import { Palette3DCanvas } from '@/components/Palette3D';
 import { usePhysicsEngine } from '@/components/PhysicsEngine';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,10 +17,12 @@ import {
   Share2, 
   Maximize2,
   Menu,
-  X
+  X,
+  User,
+  HelpCircle,
+  BookOpen
 } from 'lucide-react';
 
-type ToolType = 'pencil' | 'pen' | 'brush';
 type SurfaceType = 'whiteboard' | 'canvas' | 'paper';
 
 export const ArtStudio = () => {
@@ -28,6 +33,10 @@ export const ArtStudio = () => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [showToolPanel, setShowToolPanel] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mode, setMode] = useState<InteractionMode>('tool');
+  const [showPalette, setShowPalette] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration] = useState(30);
   
   const { engine, calculatePressureResponse, getState } = usePhysicsEngine();
   const { toast } = useToast();
@@ -50,6 +59,14 @@ export const ArtStudio = () => {
     const key = event.key.toLowerCase();
     
     switch (key) {
+      case ' ':
+        event.preventDefault();
+        setMode(mode === 'tool' ? 'camera' : 'tool');
+        toast({ 
+          title: `${mode === 'tool' ? 'Camera' : 'Tool'} Mode`, 
+          description: `Switched to ${mode === 'tool' ? 'camera navigation' : 'tool interaction'}` 
+        });
+        break;
       case 'p':
         setActiveTool('pencil');
         toast({ title: "Pencil Tool", description: "Realistic graphite pencil selected" });
@@ -61,6 +78,18 @@ export const ArtStudio = () => {
       case 'n':
         setActiveTool('pen');
         toast({ title: "Pen Tool", description: "Professional ink pen selected" });
+        break;
+      case 'c':
+        setActiveTool('crayon');
+        toast({ title: "Crayon Tool", description: "Wax crayon selected" });
+        break;
+      case 'm':
+        setActiveTool('mechanicalPencil');
+        toast({ title: "Mechanical Pencil", description: "Precision mechanical pencil selected" });
+        break;
+      case 'e':
+        setActiveTool('eraser');
+        toast({ title: "Eraser Tool", description: "3D eraser with physics selected" });
         break;
       case '1':
         setSurfaceType('whiteboard');
@@ -74,7 +103,6 @@ export const ArtStudio = () => {
       case 'r':
         if (event.ctrlKey || event.metaKey) {
           event.preventDefault();
-          // Reset canvas
           toast({ title: "Canvas Reset", description: "Starting fresh!" });
         }
         break;
@@ -95,7 +123,7 @@ export const ArtStudio = () => {
         setShowToolPanel(!showToolPanel);
         break;
     }
-  }, [toast, isFullscreen, showToolPanel]);
+  }, [toast, isFullscreen, showToolPanel, mode]);
 
   useEffect(() => {
     window.addEventListener('wheel', handleWheelPressure, { passive: false });
@@ -137,6 +165,15 @@ export const ArtStudio = () => {
       case 'pen':
         engine.updateState({ mass: 0.03, elasticity: 1.5, damping: 0.9 });
         break;
+      case 'crayon':
+        engine.updateState({ mass: 0.08, elasticity: 0.6, damping: 0.6 });
+        break;
+      case 'mechanicalPencil':
+        engine.updateState({ mass: 0.04, elasticity: 1.4, damping: 0.9 });
+        break;
+      case 'eraser':
+        engine.updateState({ mass: 0.03, elasticity: 0.9, damping: 0.8 });
+        break;
     }
   };
 
@@ -149,95 +186,117 @@ export const ArtStudio = () => {
   };
 
   return (
-    <div className="h-screen w-screen bg-background overflow-hidden flex">
-      {/* Tool Panel */}
-      <div className={`transition-all duration-300 ${showToolPanel ? 'w-80' : 'w-0'} overflow-hidden`}>
-        <ToolPanel
-          activeTool={activeTool}
-          onToolChange={handleToolChange}
-          pressure={pressure}
-          onPressureChange={setPressure}
-          angle={angle}
-          onAngleChange={setAngle}
-          surfaceType={surfaceType}
-          onSurfaceChange={handleSurfaceChange}
-        />
-      </div>
-
-      {/* Main Canvas Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Top Toolbar */}
-        <div className="h-16 ui-panel border-b border-border flex items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowToolPanel(!showToolPanel)}
-            >
-              {showToolPanel ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </Button>
-            
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="font-mono text-xs">
-                QUANTUM ART STUDIO
-              </Badge>
-              <Badge variant="outline">
-                {activeTool.toUpperCase()}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsPlaying(!isPlaying)}
-            >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            </Button>
-            
-            <Button variant="ghost" size="sm">
-              <RotateCcw className="w-4 h-4" />
-            </Button>
-            
-            <Button variant="ghost" size="sm">
-              <Save className="w-4 h-4" />
-            </Button>
-            
-            <Button variant="ghost" size="sm">
-              <Share2 className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsFullscreen(!isFullscreen)}
-            >
-              <Maximize2 className="w-4 h-4" />
-            </Button>
-          </div>
+    <div className="h-screen w-screen bg-background overflow-hidden flex flex-col">
+      {/* Top Bar */}
+      <div className="h-16 ui-panel border-b border-border flex items-center justify-between px-4">
+        <div className="flex items-center gap-4">
+          <Badge variant="secondary" className="font-mono text-xs">
+            QUANTUM ART STUDIO
+          </Badge>
+          <Badge variant="outline">
+            {activeTool.toUpperCase()} - {mode.toUpperCase()}
+          </Badge>
         </div>
 
-        {/* 3D Canvas */}
-        <div className="flex-1 p-4">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm">
+            <User className="w-4 h-4" />
+            Sign In
+          </Button>
+          
+          <Button variant="ghost" size="sm">
+            <HelpCircle className="w-4 h-4" />
+            Help
+          </Button>
+          
+          <Button variant="ghost" size="sm">
+            <BookOpen className="w-4 h-4" />
+            Tutorial
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsPlaying(!isPlaying)}
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </Button>
+          
+          <Button variant="ghost" size="sm">
+            <Save className="w-4 h-4" />
+          </Button>
+          
+          <Button variant="ghost" size="sm">
+            <Share2 className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Tool Bar */}
+        <ToolBar
+          activeTool={activeTool}
+          onToolChange={handleToolChange}
+          mode={mode}
+          onModeChange={setMode}
+          isLeftPanelOpen={showToolPanel}
+          onToggleLeftPanel={() => setShowToolPanel(!showToolPanel)}
+          onOpenPalette={() => setShowPalette(true)}
+        />
+
+        {/* Left Tool Panel (Collapsible) */}
+        <div className={`transition-all duration-300 ${showToolPanel ? 'w-80' : 'w-0'} overflow-hidden`}>
+          <ToolPanel
+            activeTool={activeTool}
+            onToolChange={handleToolChange}
+            pressure={pressure}
+            onPressureChange={setPressure}
+            angle={angle}
+            onAngleChange={setAngle}
+            surfaceType={surfaceType}
+            onSurfaceChange={handleSurfaceChange}
+          />
+        </div>
+
+        {/* Main Canvas Area */}
+        <div className="flex-1 flex flex-col">
           <ArtCanvas3D
             activeTool={activeTool}
             surfaceType={surfaceType}
             pressure={pressure}
             angle={angle}
+            mode={mode}
           />
         </div>
+
+        {/* Right Sidebar */}
+        <RightSidebar />
       </div>
 
+      {/* Timeline */}
+      <Timeline
+        isPlaying={isPlaying}
+        onPlayPause={() => setIsPlaying(!isPlaying)}
+        currentTime={currentTime}
+        duration={duration}
+        onTimeChange={setCurrentTime}
+      />
+
+      {/* 3D Palette Modal */}
+      <Palette3DCanvas 
+        isOpen={showPalette}
+        onClose={() => setShowPalette(false)}
+      />
+
       {/* Status Bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-8 ui-panel border-t border-border flex items-center justify-between px-4 text-xs text-muted-foreground">
+      <div className="absolute bottom-20 left-0 right-0 h-6 ui-panel/90 backdrop-blur-sm border-t border-border flex items-center justify-between px-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">
-          <span>Physics: {isPlaying ? 'ACTIVE' : 'PAUSED'}</span>
-          <span>Surface: {surfaceType}</span>
-          <span>Pressure: {Math.round(pressure * 100)}%</span>
+          <span>Mode: {mode} | Physics: {isPlaying ? 'ACTIVE' : 'PAUSED'}</span>
+          <span>Surface: {surfaceType} | Pressure: {Math.round(pressure * 100)}%</span>
         </div>
         <div className="flex items-center gap-4">
-          <span>P=Pencil | B=Brush | N=Pen | Tab=Tools</span>
+          <span>SPACE=Switch Mode | P=Pencil | B=Brush | E=Eraser</span>
           <span>Scroll=Pressure | Ctrl+S=Save</span>
         </div>
       </div>

@@ -3,14 +3,16 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Text, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { useToast } from '@/hooks/use-toast';
+import { ToolType, InteractionMode } from './ToolBar';
 
 interface Tool3DProps {
-  type: 'pencil' | 'pen' | 'brush';
+  type: ToolType;
   position: [number, number, number];
   rotation: [number, number, number];
   pressure: number;
   angle: number;
   isDrawing: boolean;
+  mode: InteractionMode;
 }
 
 interface CanvasSurface {
@@ -212,13 +214,15 @@ const Scene = ({
   pressure, 
   angle, 
   isDrawing, 
-  surfaceType 
+  surfaceType,
+  mode
 }: {
   activeTool: Tool3DProps['type'];
   pressure: number;
   angle: number;
   isDrawing: boolean;
   surfaceType: CanvasSurface['type'];
+  mode: InteractionMode;
 }) => {
   const { camera } = useThree();
   const [toolPosition, setToolPosition] = useState<[number, number, number]>([0, 0, 0]);
@@ -236,7 +240,8 @@ const Scene = ({
       pressure,
       angle,
       isDrawing,
-      type: activeTool
+      type: activeTool,
+      mode
     };
 
     switch (activeTool) {
@@ -253,9 +258,9 @@ const Scene = ({
     <>
       <PerspectiveCamera makeDefault position={[3, 2, 3]} />
       <OrbitControls 
-        enablePan={true}
-        enableZoom={true}
-        enableRotate={true}
+        enablePan={mode === 'camera'}
+        enableZoom={mode === 'camera'}
+        enableRotate={mode === 'camera'}
         maxPolarAngle={Math.PI / 2}
         minDistance={2}
         maxDistance={10}
@@ -290,9 +295,10 @@ interface ArtCanvas3DProps {
   surfaceType: CanvasSurface['type'];
   pressure: number;
   angle: number;
+  mode: InteractionMode;
 }
 
-export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, angle }: ArtCanvas3DProps) => {
+export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, angle, mode }: ArtCanvas3DProps) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const { toast } = useToast();
 
@@ -324,6 +330,7 @@ export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, angle }: ArtCan
             angle={angle}
             isDrawing={isDrawing}
             surfaceType={surfaceType}
+            mode={mode}
           />
         </Suspense>
       </Canvas>

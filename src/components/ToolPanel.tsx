@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ToolType } from './ToolBar';
 import { 
   Pencil, 
   Brush, 
@@ -17,8 +18,8 @@ import {
 } from 'lucide-react';
 
 interface ToolPanelProps {
-  activeTool: 'pencil' | 'pen' | 'brush';
-  onToolChange: (tool: 'pencil' | 'pen' | 'brush') => void;
+  activeTool: ToolType;
+  onToolChange: (tool: ToolType) => void;
   pressure: number;
   onPressureChange: (pressure: number) => void;
   angle: number;
@@ -46,7 +47,8 @@ export const ToolPanel = ({
   const tools = [
     { id: 'pencil' as const, icon: Pencil, name: 'Pencil', description: 'Realistic graphite pencil' },
     { id: 'pen' as const, icon: PenTool, name: 'Pen', description: 'Professional ink pen' },
-    { id: 'brush' as const, icon: Brush, name: 'Brush', description: 'Artist paint brush' }
+    { id: 'brush' as const, icon: Brush, name: 'Brush', description: 'Artist paint brush' },
+    { id: 'crayon' as const, icon: Palette, name: 'Crayon', description: 'Wax crayon tool' },
   ];
 
   const surfaces = [

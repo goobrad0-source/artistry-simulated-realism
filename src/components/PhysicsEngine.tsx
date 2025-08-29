@@ -23,11 +23,34 @@ export interface ToolPhysics {
     paintLoad: number;
     bristleCount: number;
     tipSize: number;
+    hairElasticity: number;
+    rigidity: number;
+    dampness: number;
+    bristleShape: 'round' | 'flat' | 'filbert' | 'fan' | 'detail';
   };
   pen: {
     inkFlow: number;
-    tipMaterial: 'ballpoint' | 'gel' | 'fountain';
+    tipMaterial: 'ballpoint' | 'gel' | 'fountain' | 'marker' | 'fineliner';
     pressure: number;
+  };
+  crayon: {
+    waxHardness: number;
+    pigmentDensity: number;
+    meltingPoint: number;
+    mass: number;
+  };
+  mechanicalPencil: {
+    leadSize: number; // 0.3, 0.5, 0.7, 0.9, 2.0mm
+    leadHardness: number;
+    clickMechanism: boolean;
+    leadExtension: number;
+  };
+  eraser: {
+    material: 'rubber' | 'vinyl' | 'kneaded' | 'gum';
+    hardness: number;
+    wearRate: number;
+    residueProduction: number;
+    mass: number;
   };
 }
 
@@ -58,12 +81,35 @@ export class ArtPhysicsEngine {
         bristleStiffness: 0.5,
         paintLoad: 0.8,
         bristleCount: 50,
-        tipSize: 5
+        tipSize: 5,
+        hairElasticity: 0.7,
+        rigidity: 0.6,
+        dampness: 0.3,
+        bristleShape: 'round'
       },
       pen: {
         inkFlow: 0.7,
         tipMaterial: 'ballpoint',
         pressure: 0.6
+      },
+      crayon: {
+        waxHardness: 0.4,
+        pigmentDensity: 0.8,
+        meltingPoint: 45,
+        mass: 0.08
+      },
+      mechanicalPencil: {
+        leadSize: 0.5,
+        leadHardness: 2,
+        clickMechanism: true,
+        leadExtension: 0.0
+      },
+      eraser: {
+        material: 'rubber',
+        hardness: 0.6,
+        wearRate: 0.002,
+        residueProduction: 0.1,
+        mass: 0.03
       }
     };
   }
