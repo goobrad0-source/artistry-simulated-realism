@@ -244,18 +244,101 @@ const Scene = ({
 }) => {
   const { camera, raycaster, pointer, scene } = useThree();
   const [toolPosition, setToolPosition] = useState<[number, number, number]>([0, 0.5, 0]);
+  const [toolVelocity, setToolVelocity] = useState<[number, number, number]>([0, 0, 0]);
   const [grabPoint, setGrabPoint] = useState<[number, number, number]>([0, 0, 0]);
   const [grabOffset, setGrabOffset] = useState<[number, number, number]>([0, 0, 0]);
   const [isDragging, setIsDragging] = useState(false);
   const [drawingPoints, setDrawingPoints] = useState<THREE.Vector3[]>([]);
+  const [surfaceContactForce, setSurfaceContactForce] = useState(0);
   
   const toolRef = useRef<THREE.Group>(null);
   const intersectionPoint = useRef<THREE.Vector3>(new THREE.Vector3());
+  const lastToolPosition = useRef<[number, number, number]>([0, 0.5, 0]);
+  
+  // Physics constants
+  const GRAVITY = -0.008;
+  const SURFACE_Y = -1; // Surface position
+  const TOOL_LENGTH = 0.75; // Half tool length for tip calculation
+  const ELASTIC_DAMPING = 0.85;
+  const COLLISION_STIFFNESS = 0.3;
+  const FRICTION = 0.95;
 
   useEffect(() => {
     camera.position.set(3, 2, 3);
     camera.lookAt(0, 0, 0);
   }, [camera]);
+
+  // Physics simulation loop
+  useFrame((state, delta) => {
+    if (mode !== 'tool') return;
+
+    // Calculate tool tip position
+    const tipY = toolPosition[1] - TOOL_LENGTH;
+    const [currX, currY, currZ] = toolPosition;
+    const [lastX, lastY, lastZ] = lastToolPosition.current;
+    
+    // Calculate velocity
+    const velocityX = (currX - lastX) / delta;
+    const velocityY = (currY - lastY) / delta;
+    const velocityZ = (currZ - lastZ) / delta;
+    
+    let newVelocity: [number, number, number] = [velocityX, velocityY, velocityZ];
+    let newPosition: [number, number, number] = [...toolPosition];
+
+    if (!isDragging) {
+      // Apply gravity when not being dragged
+      newVelocity[1] += GRAVITY;
+      
+      // Apply velocity to position
+      newPosition[0] += newVelocity[0] * delta;
+      newPosition[1] += newVelocity[1] * delta;
+      newPosition[2] += newVelocity[2] * delta;
+
+      // Check surface collision (tool tip hits surface)
+      const newTipY = newPosition[1] - TOOL_LENGTH;
+      if (newTipY <= SURFACE_Y) {
+        // Collision! Apply surface constraint and elastic dampening
+        const penetration = SURFACE_Y - newTipY;
+        
+        // Push tool back to surface
+        newPosition[1] = SURFACE_Y + TOOL_LENGTH;
+        
+        // Apply elastic collision response
+        if (newVelocity[1] < 0) { // Only if moving downward
+          newVelocity[1] = -newVelocity[1] * ELASTIC_DAMPING;
+          
+          // Apply collision force feedback
+          const collisionForce = Math.abs(newVelocity[1]) * 10;
+          setSurfaceContactForce(collisionForce);
+          
+          // Create vibration effect based on collision force
+          if (collisionForce > 0.5) {
+            newPosition[0] += (Math.random() - 0.5) * 0.01 * collisionForce;
+            newPosition[2] += (Math.random() - 0.5) * 0.01 * collisionForce;
+          }
+        }
+        
+        // Apply friction to horizontal movement when in contact
+        newVelocity[0] *= FRICTION;
+        newVelocity[2] *= FRICTION;
+      }
+
+      // Apply air resistance
+      newVelocity[0] *= 0.98;
+      newVelocity[1] *= 0.98;
+      newVelocity[2] *= 0.98;
+      
+      // Update positions
+      setToolPosition(newPosition);
+      setToolVelocity(newVelocity);
+    }
+
+    // Store last position for velocity calculation
+    lastToolPosition.current = [...toolPosition];
+    
+    // Decay surface contact force
+    setSurfaceContactForce(prev => prev * 0.9);
+  });
 
   // Handle pointer interaction with 3D tool
   const handlePointerDown = (event: THREE.Event) => {
@@ -311,19 +394,41 @@ const Scene = ({
         const grabHeight = grabOffset[1];
         const tipInfluence = Math.max(0, 1 - Math.abs(grabHeight + 0.5) * 2); // Stronger near tip
         
-        // Calculate realistic tool positioning
+        // Calculate realistic tool positioning with surface constraint
+        let targetY = surfacePoint.y + 0.1 + (tipInfluence * 0.2);
+        
+        // Apply surface constraint - tool tip cannot go below surface
+        const minY = SURFACE_Y + TOOL_LENGTH + 0.05; // Small offset to prevent clipping
+        if (targetY < minY) {
+          targetY = minY;
+          // Apply pressure feedback when constrained to surface
+          setSurfaceContactForce(Math.abs(targetY - (surfacePoint.y + 0.1)) * 5);
+        }
+        
         const newToolPosition: [number, number, number] = [
           surfacePoint.x - grabOffset[0],
-          surfacePoint.y + 0.1 + (tipInfluence * 0.2), // Lift based on grab point
+          targetY,
           surfacePoint.z - grabOffset[2]
         ];
         
         setToolPosition(newToolPosition);
+        setToolVelocity([0, 0, 0]); // Reset velocity when dragging
         
-        // Add drawing point if tool tip is close to surface
-        const tipToSurface = Math.abs(newToolPosition[1] - surfacePoint.y);
-        if (tipToSurface < 0.15 && tipInfluence > 0.5) {
-          setDrawingPoints(prev => [...prev, surfacePoint.clone()]);
+        // Add drawing point if tool tip is touching surface with pressure
+        const tipY = newToolPosition[1] - TOOL_LENGTH;
+        const isOnSurface = Math.abs(tipY - SURFACE_Y) < 0.02;
+        const hasPressure = pressure > 0.1;
+        
+        if (isOnSurface && hasPressure && tipInfluence > 0.3) {
+          const drawPoint = new THREE.Vector3(surfacePoint.x, SURFACE_Y + 0.001, surfacePoint.z);
+          setDrawingPoints(prev => {
+            // Avoid duplicate points too close together
+            const lastPoint = prev[prev.length - 1];
+            if (!lastPoint || lastPoint.distanceTo(drawPoint) > 0.02) {
+              return [...prev, drawPoint];
+            }
+            return prev;
+          });
         }
       }
     }
