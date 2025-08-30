@@ -21,9 +21,10 @@ interface CanvasSurface {
   roughness: number;
 }
 
-const Pencil3D = ({ position, rotation, pressure, angle, isDrawing }: Tool3DProps) => {
+const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode }: Tool3DProps) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const tipRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state, delta) => {
     if (meshRef.current && isDrawing) {
@@ -241,34 +242,145 @@ const Scene = ({
   surfaceType: CanvasSurface['type'];
   mode: InteractionMode;
 }) => {
-  const { camera } = useThree();
-  const [toolPosition, setToolPosition] = useState<[number, number, number]>([0, 0, 0]);
+  const { camera, raycaster, pointer, scene } = useThree();
+  const [toolPosition, setToolPosition] = useState<[number, number, number]>([0, 0.5, 0]);
+  const [grabPoint, setGrabPoint] = useState<[number, number, number]>([0, 0, 0]);
+  const [grabOffset, setGrabOffset] = useState<[number, number, number]>([0, 0, 0]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [drawingPoints, setDrawingPoints] = useState<THREE.Vector3[]>([]);
+  
+  const toolRef = useRef<THREE.Group>(null);
+  const intersectionPoint = useRef<THREE.Vector3>(new THREE.Vector3());
 
   useEffect(() => {
-    // Position camera for optimal art creation view
     camera.position.set(3, 2, 3);
     camera.lookAt(0, 0, 0);
   }, [camera]);
+
+  // Handle pointer interaction with 3D tool
+  const handlePointerDown = (event: THREE.Event) => {
+    if (mode !== 'tool') return;
+    
+    // Calculate intersection point with raycaster
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    
+    if (intersects.length > 0) {
+      const intersection = intersects[0];
+      const point = intersection.point;
+      
+      // Calculate grab offset from tool center
+      const grabOffset: [number, number, number] = [
+        point.x - toolPosition[0],
+        point.y - toolPosition[1], 
+        point.z - toolPosition[2]
+      ];
+      
+      setGrabPoint([point.x, point.y, point.z]);
+      setGrabOffset(grabOffset);
+      setIsDragging(true);
+      
+      // Physics calculation based on grab point
+      const grabHeight = grabOffset[1]; // Y offset from tool center
+      const isNearTip = grabHeight < -0.3; // Grabbed near the tip
+      const isNearHandle = grabHeight > 0.3; // Grabbed near the handle
+      
+      // Store grab physics for realistic tool behavior
+      intersectionPoint.current.copy(point);
+    }
+  };
+
+  const handlePointerMove = (event: THREE.Event) => {
+    if (!isDragging || mode !== 'tool') return;
+    
+    // Update raycaster for surface intersection
+    raycaster.setFromCamera(pointer, camera);
+    
+    // Find intersection with drawing surface
+    const surfaceMesh = scene.children.find(child => 
+      child instanceof THREE.Mesh && 
+      child.geometry instanceof THREE.PlaneGeometry
+    );
+    
+    if (surfaceMesh) {
+      const surfaceIntersects = raycaster.intersectObject(surfaceMesh);
+      if (surfaceIntersects.length > 0) {
+        const surfacePoint = surfaceIntersects[0].point;
+        
+        // Apply grab physics - different behavior based on where tool was grabbed
+        const grabHeight = grabOffset[1];
+        const tipInfluence = Math.max(0, 1 - Math.abs(grabHeight + 0.5) * 2); // Stronger near tip
+        
+        // Calculate realistic tool positioning
+        const newToolPosition: [number, number, number] = [
+          surfacePoint.x - grabOffset[0],
+          surfacePoint.y + 0.1 + (tipInfluence * 0.2), // Lift based on grab point
+          surfacePoint.z - grabOffset[2]
+        ];
+        
+        setToolPosition(newToolPosition);
+        
+        // Add drawing point if tool tip is close to surface
+        const tipToSurface = Math.abs(newToolPosition[1] - surfacePoint.y);
+        if (tipToSurface < 0.15 && tipInfluence > 0.5) {
+          setDrawingPoints(prev => [...prev, surfacePoint.clone()]);
+        }
+      }
+    }
+  };
+
+  const handlePointerUp = () => {
+    setIsDragging(false);
+    setGrabOffset([0, 0, 0]);
+  };
 
   const renderTool = () => {
     const baseProps = {
       position: toolPosition,
       rotation: [0, 0, angle] as [number, number, number],
-      pressure,
+      pressure: isDragging ? pressure * 1.5 : pressure,
       angle,
-      isDrawing,
+      isDrawing: isDragging,
       type: activeTool,
       mode
     };
 
-    switch (activeTool) {
-      case 'pencil':
-        return <Pencil3D {...baseProps} />;
-      case 'brush':
-        return <Brush3D {...baseProps} />;
-      default:
-        return <Pencil3D {...baseProps} />;
-    }
+    const toolComponent = (() => {
+      switch (activeTool) {
+        case 'pencil':
+          return <Pencil3D {...baseProps} />;
+        case 'brush':
+          return <Brush3D {...baseProps} />;
+        default:
+          return <Pencil3D {...baseProps} />;
+      }
+    })();
+
+    return (
+      <group 
+        ref={toolRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
+        {toolComponent}
+      </group>
+    );
+  };
+
+  // Render drawing strokes
+  const renderStrokes = () => {
+    if (drawingPoints.length < 2) return null;
+    
+    const points = drawingPoints;
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    
+    return (
+      <primitive object={new THREE.Line(geometry, new THREE.LineBasicMaterial({ 
+        color: "#2F2F2F", 
+        linewidth: 2 
+      }))} />
+    );
   };
 
   return (
@@ -297,6 +409,7 @@ const Scene = ({
       
       <DrawingSurface surfaceType={surfaceType} />
       {renderTool()}
+      {renderStrokes()}
       
       {/* Studio environment elements */}
       <mesh position={[8, 3, 0]} rotation={[0, -Math.PI / 4, 0]}>
