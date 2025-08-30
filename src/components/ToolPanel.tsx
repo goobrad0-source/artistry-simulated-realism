@@ -14,7 +14,9 @@ import {
   Settings,
   RotateCw,
   Zap,
-  Layers
+  Layers,
+  Scissors,
+  Eraser as EraserIcon
 } from 'lucide-react';
 
 interface ToolPanelProps {
@@ -46,9 +48,11 @@ export const ToolPanel = ({
 
   const tools = [
     { id: 'pencil' as const, icon: Pencil, name: 'Pencil', description: 'Realistic graphite pencil' },
+    { id: 'mechanicalPencil' as const, icon: Scissors, name: 'Mechanical Pencil', description: 'Precision mechanical pencil' },
     { id: 'pen' as const, icon: PenTool, name: 'Pen', description: 'Professional ink pen' },
     { id: 'brush' as const, icon: Brush, name: 'Brush', description: 'Artist paint brush' },
     { id: 'crayon' as const, icon: Palette, name: 'Crayon', description: 'Wax crayon tool' },
+    { id: 'eraser' as const, icon: EraserIcon, name: 'Eraser', description: '3D eraser with wear' },
   ];
 
   const surfaces = [

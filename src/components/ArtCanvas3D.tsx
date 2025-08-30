@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, Suspense } from 'react';
+import { useRef, useState, useEffect, Suspense, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, Text, Environment } from '@react-three/drei';
 import * as THREE from 'three';
@@ -173,27 +173,42 @@ const DrawingSurface = ({ surfaceType }: { surfaceType: CanvasSurface['type'] })
         return {
           color: '#F5F5DC',
           roughness: 0.9,
-          normalScale: 2.0,
-          bumpScale: 0.05
+          normalScale: 1.5,
         };
       case 'paper':
         return {
           color: '#FFFEF7',
           roughness: 0.8,
-          normalScale: 1.0,
-          bumpScale: 0.02
+          normalScale: 0.8,
         };
       default: // whiteboard
         return {
           color: '#FFFFFF',
           roughness: 0.1,
-          normalScale: 0.1,
-          bumpScale: 0.001
+          normalScale: 0.2,
         };
     }
   };
 
   const props = getSurfaceProperties();
+
+  // Procedural micro-normal texture for realistic surface grain
+  const normalMap = useMemo(() => {
+    const size = 128;
+    const data = new Uint8Array(size * size * 4);
+    for (let i = 0; i < size * size; i++) {
+      const v = Math.floor(128 + (Math.random() - 0.5) * 40); // subtle noise
+      data[i * 4] = v;
+      data[i * 4 + 1] = v;
+      data[i * 4 + 2] = v;
+      data[i * 4 + 3] = 255;
+    }
+    const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(surfaceType === 'canvas' ? 20 : surfaceType === 'paper' ? 10 : 2, surfaceType === 'canvas' ? 16 : surfaceType === 'paper' ? 8 : 2);
+    texture.needsUpdate = true;
+    return texture;
+  }, [surfaceType]);
 
   return (
     <mesh ref={surfaceRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]}>
@@ -204,6 +219,8 @@ const DrawingSurface = ({ surfaceType }: { surfaceType: CanvasSurface['type'] })
         metalness={0.0}
         clearcoat={surfaceType === 'whiteboard' ? 0.8 : 0.0}
         clearcoatRoughness={0.1}
+        normalMap={normalMap as any}
+        normalScale={new THREE.Vector2(props.normalScale, props.normalScale)}
       />
     </mesh>
   );

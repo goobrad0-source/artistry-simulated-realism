@@ -48,7 +48,7 @@ export const ToolBar = ({
   onOpenPalette
 }: ToolBarProps) => {
   return (
-    <div className="w-16 h-full ui-panel border-r border-border flex flex-col">
+    <div className="w-16 h-full ui-panel border-r border-border flex flex-col relative z-20 pointer-events-auto">
       {/* Panel Toggle */}
       <Button
         variant="ghost"
