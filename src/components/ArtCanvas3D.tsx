@@ -242,6 +242,7 @@ const Scene = ({
   const [isDragging, setIsDragging] = useState(false);
   const [drawingPoints, setDrawingPoints] = useState<THREE.Vector3[]>([]);
   const [surfaceContactForce, setSurfaceContactForce] = useState(0);
+  const [planeDragOffset, setPlaneDragOffset] = useState<[number, number]>([0, 0]);
   
   const toolRef = useRef<THREE.Group>(null);
   const intersectionPoint = useRef<THREE.Vector3>(new THREE.Vector3());
@@ -331,30 +332,17 @@ const Scene = ({
     if (mode !== 'tool') return;
     (event as any).stopPropagation?.();
 
-    // Precise ray from the event
-    const rc = new THREE.Raycaster();
-    rc.ray.copy((event as any).ray);
+    const ray: THREE.Ray = (event as any).ray;
+    const target = new THREE.Vector3();
 
-    // Only consider intersections with the tool itself
-    const intersects = toolRef.current ? rc.intersectObject(toolRef.current, true) : [];
+    if (ray.intersectPlane(surfacePlane, target)) {
+      // Store horizontal offset so drag feels "grabbed from anywhere"
+      const offsetX = target.x - toolPosition[0];
+      const offsetZ = target.z - toolPosition[2];
+      setPlaneDragOffset([offsetX, offsetZ]);
 
-    if (intersects.length > 0) {
-      const hit = intersects[0];
-      const point = hit.point;
-
-      // Calculate grab offset from tool center
-      const offset: [number, number, number] = [
-        point.x - toolPosition[0],
-        point.y - toolPosition[1],
-        point.z - toolPosition[2],
-      ];
-
-      setGrabPoint([point.x, point.y, point.z]);
-      setGrabOffset(offset);
+      setGrabPoint([target.x, SURFACE_Y, target.z]);
       setIsDragging(true);
-
-      // Store grab physics for realistic tool behavior
-      intersectionPoint.current.copy(point);
     }
   };
 
@@ -364,42 +352,32 @@ const Scene = ({
     const ray: THREE.Ray = (event as any).ray;
     const target = new THREE.Vector3();
 
-    // Intersect the ray with the drawing surface plane for precise cursor tracking
     if (ray.intersectPlane(surfacePlane, target)) {
-      // Apply grab physics - different behavior based on where tool was grabbed
-      const grabHeight = grabOffset[1];
-      const tipInfluence = Math.max(0, 1 - Math.abs(grabHeight + 0.5) * 2); // Stronger near tip
+      // Desired horizontal tool position (XZ only), keep tip constrained to surface
+      const desiredX = target.x - planeDragOffset[0];
+      const desiredZ = target.z - planeDragOffset[1];
+      const desiredY = SURFACE_Y + TOOL_LENGTH;
 
-      // Calculate realistic tool positioning with surface constraint
-      let targetY = target.y + 0.1 + tipInfluence * 0.2;
-
-      // Apply surface constraint - tool tip cannot go below surface
-      const minY = SURFACE_Y + TOOL_LENGTH; // tip on the surface
-      if (targetY < minY) {
-        targetY = minY;
-        // Apply pressure feedback when constrained to surface
-        setSurfaceContactForce((prev) => Math.max(prev, Math.abs(targetY - (target.y + 0.1)) * 5));
-      }
-
+      // Smooth movement to avoid jitter
+      const smoothing = 0.25;
       const newToolPosition: [number, number, number] = [
-        target.x - grabOffset[0],
-        targetY,
-        target.z - grabOffset[2],
+        THREE.MathUtils.lerp(toolPosition[0], desiredX, smoothing),
+        desiredY,
+        THREE.MathUtils.lerp(toolPosition[2], desiredZ, smoothing),
       ];
 
       setToolPosition(newToolPosition);
       setToolVelocity([0, 0, 0]); // Reset velocity when dragging
 
-      // Add drawing point if tool tip is touching surface with pressure
+      // Drawing when the tip touches the surface
       const tipY = newToolPosition[1] - TOOL_LENGTH;
       const isOnSurface = Math.abs(tipY - SURFACE_Y) < 0.02;
       const effectivePressure = Math.min(1, pressure + surfaceContactForce * 0.05);
       const hasPressure = effectivePressure > 0.05;
 
-      if (isOnSurface && hasPressure && tipInfluence > 0.15) {
+      if (isOnSurface && hasPressure) {
         const drawPoint = new THREE.Vector3(newToolPosition[0], SURFACE_Y + 0.001, newToolPosition[2]);
         setDrawingPoints((prev) => {
-          // Avoid duplicate points too close together
           const lastPoint = prev[prev.length - 1];
           if (!lastPoint || lastPoint.distanceTo(drawPoint) > 0.005) {
             return [...prev, drawPoint];
@@ -417,7 +395,7 @@ const Scene = ({
 
   const renderTool = () => {
     const baseProps = {
-      position: toolPosition,
+      position: [0, 0, 0] as [number, number, number],
       rotation: [0, 0, angle] as [number, number, number],
       pressure: isDragging ? pressure * 1.5 : pressure,
       angle,
@@ -440,6 +418,7 @@ const Scene = ({
     return (
       <group 
         ref={toolRef}
+        position={toolPosition}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -497,6 +476,17 @@ const Scene = ({
       <pointLight position={[-5, 5, -5]} intensity={0.5} />
       
       <DrawingSurface surfaceType={surfaceType} />
+      {/* Invisible interaction plane for robust XZ dragging */}
+      <mesh
+        position={[0, SURFACE_Y + 0.0005, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
+        <planeGeometry args={[100, 100]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
       {renderTool()}
       {renderStrokes()}
       
