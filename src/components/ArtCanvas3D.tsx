@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, Suspense, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Text, Environment } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Text, Environment, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { useToast } from '@/hooks/use-toast';
 import { ToolType, InteractionMode } from './ToolBar';
@@ -80,9 +80,10 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode }: Tool
         />
       </mesh>
       
-      {/* Realistic wood tip around graphite */}
-      <mesh position={[0, -0.85, 0]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.04, 0.2, 8]} />
+      {/* Realistic wood tip around graphite (frustum with hole) */}
+      <mesh position={[0, -0.85, 0]}>
+        {/* Frustum: top wide connects to body, bottom small leaves hole for graphite */}
+        <cylinderGeometry args={[0.04, 0.022, 0.2, 16]} />
         <meshPhysicalMaterial 
           color="#DEB887" 
           roughness={0.8}
@@ -391,15 +392,16 @@ const Scene = ({
 
       // Add drawing point if tool tip is touching surface with pressure
       const tipY = newToolPosition[1] - TOOL_LENGTH;
-      const isOnSurface = Math.abs(tipY - SURFACE_Y) < 0.01;
-      const hasPressure = pressure > 0.05;
+      const isOnSurface = Math.abs(tipY - SURFACE_Y) < 0.02;
+      const effectivePressure = Math.min(1, pressure + surfaceContactForce * 0.05);
+      const hasPressure = effectivePressure > 0.05;
 
-      if (isOnSurface && hasPressure && tipInfluence > 0.3) {
+      if (isOnSurface && hasPressure && tipInfluence > 0.15) {
         const drawPoint = new THREE.Vector3(newToolPosition[0], SURFACE_Y + 0.001, newToolPosition[2]);
         setDrawingPoints((prev) => {
           // Avoid duplicate points too close together
           const lastPoint = prev[prev.length - 1];
-          if (!lastPoint || lastPoint.distanceTo(drawPoint) > 0.01) {
+          if (!lastPoint || lastPoint.distanceTo(drawPoint) > 0.005) {
             return [...prev, drawPoint];
           }
           return prev;
@@ -442,6 +444,11 @@ const Scene = ({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
+        {/* Enlarged invisible collider for easier grabbing */}
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[0.25, 1.8, 0.25]} />
+          <meshBasicMaterial transparent opacity={0.001} depthWrite={false} />
+        </mesh>
         {toolComponent}
       </group>
     );
@@ -452,13 +459,16 @@ const Scene = ({
     if (drawingPoints.length < 2) return null;
     
     const points = drawingPoints;
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const effectivePressure = Math.min(1, pressure + surfaceContactForce * 0.05);
+    const width = 2 + effectivePressure * 6; // screen-space line width
     
     return (
-      <primitive object={new THREE.Line(geometry, new THREE.LineBasicMaterial({ 
-        color: "#2F2F2F", 
-        linewidth: 2 
-      }))} />
+      <Line
+        points={points}
+        color="#2F2F2F"
+        lineWidth={width}
+        dashed={false}
+      />
     );
   };
 
