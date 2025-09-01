@@ -26,20 +26,11 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode }: Tool
   const tipRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
 
-  useFrame((state, delta) => {
-    if (meshRef.current && isDrawing) {
-      // Realistic pencil physics with elastic dampening
-      const elasticForce = 0.02 * pressure;
-      const dampening = 0.85;
-      
-      meshRef.current.rotation.z += (angle - meshRef.current.rotation.z) * 0.1;
-      meshRef.current.position.y = position[1] - (pressure * 0.05);
-      
+  useFrame(() => {
+    if (isDrawing && tipRef.current) {
       // Simulate pencil tip wear based on pressure and lead type
-      if (tipRef.current) {
-        const wearFactor = pressure * 0.001;
-        tipRef.current.scale.setScalar(Math.max(0.8, 1 - wearFactor));
-      }
+      const wearFactor = pressure * 0.001;
+      tipRef.current.scale.setScalar(Math.max(0.85, 1 - wearFactor));
     }
   });
 
@@ -78,7 +69,7 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode }: Tool
       </mesh>
       
       {/* Pencil tip with realistic graphite */}
-      <mesh ref={tipRef} position={[0, -0.75, 0]} rotation={[Math.PI, 0, 0]}>
+      <mesh ref={tipRef} position={[0, -1.0, 0]} rotation={[Math.PI, 0, 0]}>
         <coneGeometry args={[0.02, 0.1, 8]} />
         <meshPhysicalMaterial 
           color="#2F2F2F" 
@@ -90,7 +81,7 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode }: Tool
       </mesh>
       
       {/* Realistic wood tip around graphite */}
-      <mesh position={[0, -0.7, 0]} rotation={[Math.PI, 0, 0]}>
+      <mesh position={[0, -0.85, 0]} rotation={[Math.PI, 0, 0]}>
         <coneGeometry args={[0.04, 0.2, 8]} />
         <meshPhysicalMaterial 
           color="#DEB887" 
@@ -258,7 +249,7 @@ const Scene = ({
   // Physics constants
   const GRAVITY = -0.008;
   const SURFACE_Y = -1; // Surface position
-  const TOOL_LENGTH = 0.75; // Half tool length for tip calculation
+  const TOOL_LENGTH = 1.05; // Half tool length (to tip) for collision
   const ELASTIC_DAMPING = 0.85;
   const COLLISION_STIFFNESS = 0.3;
   const FRICTION = 0.95;
@@ -276,22 +267,14 @@ const Scene = ({
 
     // Calculate tool tip position
     const tipY = toolPosition[1] - TOOL_LENGTH;
-    const [currX, currY, currZ] = toolPosition;
-    const [lastX, lastY, lastZ] = lastToolPosition.current;
-    
-    // Calculate velocity
-    const velocityX = (currX - lastX) / delta;
-    const velocityY = (currY - lastY) / delta;
-    const velocityZ = (currZ - lastZ) / delta;
-    
-    let newVelocity: [number, number, number] = [velocityX, velocityY, velocityZ];
+    let newVelocity: [number, number, number] = [...toolVelocity];
     let newPosition: [number, number, number] = [...toolPosition];
 
     if (!isDragging) {
       // Apply gravity when not being dragged
       newVelocity[1] += GRAVITY;
       
-      // Apply velocity to position
+      // Integrate velocity to position
       newPosition[0] += newVelocity[0] * delta;
       newPosition[1] += newVelocity[1] * delta;
       newPosition[2] += newVelocity[2] * delta;
@@ -299,33 +282,33 @@ const Scene = ({
       // Check surface collision (tool tip hits surface)
       const newTipY = newPosition[1] - TOOL_LENGTH;
       if (newTipY <= SURFACE_Y) {
-        // Collision! Apply surface constraint and elastic dampening
+        // Collision! Constrain tip to the surface
         const penetration = SURFACE_Y - newTipY;
         
-        // Push tool back to surface
+        // Snap tool so tip rests on surface
         newPosition[1] = SURFACE_Y + TOOL_LENGTH;
         
-        // Apply elastic collision response
+        // Elastic bounce only if moving downward
         if (newVelocity[1] < 0) { // Only if moving downward
           newVelocity[1] = -newVelocity[1] * ELASTIC_DAMPING;
           
-          // Apply collision force feedback
+          // Collision force feedback
           const collisionForce = Math.abs(newVelocity[1]) * 10;
           setSurfaceContactForce(collisionForce);
           
-          // Create vibration effect based on collision force
+          // Subtle lateral vibration
           if (collisionForce > 0.5) {
             newPosition[0] += (Math.random() - 0.5) * 0.01 * collisionForce;
             newPosition[2] += (Math.random() - 0.5) * 0.01 * collisionForce;
           }
         }
         
-        // Apply friction to horizontal movement when in contact
+        // Friction when in contact
         newVelocity[0] *= FRICTION;
         newVelocity[2] *= FRICTION;
       }
 
-      // Apply air resistance
+      // Air resistance
       newVelocity[0] *= 0.98;
       newVelocity[1] *= 0.98;
       newVelocity[2] *= 0.98;

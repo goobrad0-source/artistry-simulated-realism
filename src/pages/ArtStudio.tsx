@@ -46,7 +46,7 @@ export const ArtStudio = () => {
     event.preventDefault();
     const delta = event.deltaY > 0 ? -0.05 : 0.05;
     const newPressure = Math.max(0.1, Math.min(1.0, pressure + delta));
-    setPressure(calculatePressureResponse(newPressure, 2.5));
+    setPressure(newPressure);
     
     // Haptic feedback simulation
     if ('vibrate' in navigator) {
