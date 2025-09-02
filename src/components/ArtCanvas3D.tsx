@@ -4,6 +4,7 @@ import { OrbitControls, PerspectiveCamera, Text, Environment, Line } from '@reac
 import * as THREE from 'three';
 import { useToast } from '@/hooks/use-toast';
 import { ToolType, InteractionMode } from './ToolBar';
+import { LEDTip, ContactPoint, LEDTipGeometry } from './LEDTipPhysics';
 
 interface Tool3DProps {
   type: ToolType;
@@ -21,7 +22,7 @@ interface CanvasSurface {
   roughness: number;
 }
 
-const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode }: Tool3DProps) => {
+const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, onDrawingPoints }: Tool3DProps & { onDrawingPoints?: (pointsUpdater: (prev: THREE.Vector3[]) => THREE.Vector3[]) => void }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const tipRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -68,17 +69,30 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode }: Tool
         />
       </mesh>
       
-      {/* Pencil tip with realistic graphite */}
-      <mesh ref={tipRef} position={[0, -1.0, 0]} rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.02, 0.1, 8]} />
-        <meshPhysicalMaterial 
-          color="#2F2F2F" 
-          roughness={0.3}
-          metalness={0.1}
-          emissive="#111111"
-          emissiveIntensity={0.1}
-        />
-      </mesh>
+      {/* Advanced LED tip with volumetric physics */}
+      <LEDTip
+        position={[0, -1.0, 0]}
+        rotation={[Math.PI, 0, 0]}
+        pressure={pressure}
+        isDrawing={isDrawing}
+        surfaceY={-1}
+        onContact={(contacts, shape) => {
+          // Handle advanced drawing based on contact shape
+          if (contacts.length > 0 && onDrawingPoints) {
+            const contact = contacts[0];
+            const drawPoint = new THREE.Vector3(contact.position.x, contact.position.y + 0.001, contact.position.z);
+            
+            // Use contact shape for advanced line rendering
+            onDrawingPoints((prev: THREE.Vector3[]) => {
+              const lastPoint = prev[prev.length - 1];
+              if (!lastPoint || lastPoint.distanceTo(drawPoint) > 0.005) {
+                return [...prev, drawPoint];
+              }
+              return prev;
+            });
+          }
+        }}
+      />
       
       {/* Realistic wood tip around graphite (frustum with hole) */}
       <mesh position={[0, -0.85, 0]}>
@@ -481,11 +495,11 @@ const Scene = ({
     const toolComponent = (() => {
       switch (activeTool) {
         case 'pencil':
-          return <Pencil3D {...baseProps} />;
+          return <Pencil3D {...baseProps} onDrawingPoints={setDrawingPoints} />;
         case 'brush':
           return <Brush3D {...baseProps} />;
         default:
-          return <Pencil3D {...baseProps} />;
+          return <Pencil3D {...baseProps} onDrawingPoints={setDrawingPoints} />;
       }
     })();
 
