@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 
-export interface LEDVertex {
+export interface LeadVertex {
   position: THREE.Vector3;
   originalPosition: THREE.Vector3;
   wear: number; // 0 = no wear, 1 = completely worn
@@ -16,8 +16,8 @@ export interface ContactPoint {
   pressure: number;
 }
 
-export class LEDTipGeometry {
-  vertices: LEDVertex[] = [];
+export class LeadTipGeometry {
+  vertices: LeadVertex[] = [];
   mesh: THREE.Mesh;
   geometry: THREE.BufferGeometry;
   
@@ -30,10 +30,10 @@ export class LEDTipGeometry {
     // Create cone-like LED tip with individual vertices
     this.vertices = [];
     
-    // Tip vertex (point of cone)
+    // Tip vertex (point of cone) - pointing DOWN for correct orientation
     this.vertices.push({
-      position: new THREE.Vector3(0, -height, 0),
-      originalPosition: new THREE.Vector3(0, -height, 0),
+      position: new THREE.Vector3(0, 0, 0),
+      originalPosition: new THREE.Vector3(0, 0, 0),
       wear: 0,
       hardness: 0.7 // Tip is softer
     });
@@ -45,8 +45,8 @@ export class LEDTipGeometry {
       const z = Math.sin(angle) * radius;
       
       this.vertices.push({
-        position: new THREE.Vector3(x, 0, z),
-        originalPosition: new THREE.Vector3(x, 0, z),
+        position: new THREE.Vector3(x, height, z),
+        originalPosition: new THREE.Vector3(x, height, z),
         wear: 0,
         hardness: 0.9 // Base is harder
       });
@@ -55,7 +55,7 @@ export class LEDTipGeometry {
     // Create intermediate rings for more realistic wear
     const rings = 3;
     for (let ring = 1; ring <= rings; ring++) {
-      const ringHeight = -(height * ring) / (rings + 1);
+      const ringHeight = (height * ring) / (rings + 1);
       const ringRadius = radius * (1 - ring / (rings + 1));
       
       for (let i = 0; i < segments; i++) {
@@ -146,7 +146,7 @@ export class LEDTipGeometry {
     
     contacts.forEach(contact => {
       // Find closest vertex to contact point
-      let closestVertex: LEDVertex | null = null;
+      let closestVertex: LeadVertex | null = null;
       let minDistance = Infinity;
       
       this.vertices.forEach(vertex => {
@@ -241,41 +241,44 @@ export class LEDTipGeometry {
   }
 }
 
-export interface LEDTipProps {
+export interface LeadTipProps {
   position: [number, number, number];
   rotation: [number, number, number];
   pressure: number;
   isDrawing: boolean;
   surfaceY: number;
+  toolWorldMatrix?: THREE.Matrix4; // Add tool's world transformation
   onContact: (contacts: ContactPoint[], shape: any) => void;
 }
 
-export const LEDTip = ({ position, rotation, pressure, isDrawing, surfaceY, onContact }: LEDTipProps) => {
+export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, toolWorldMatrix, onContact }: LeadTipProps) => {
   const meshRef = useRef<THREE.Mesh>(null);
-  const ledGeometryRef = useRef<LEDTipGeometry>();
+  const leadGeometryRef = useRef<LeadTipGeometry>();
   
-  // Initialize LED geometry
-  const ledGeometry = useMemo(() => {
-    ledGeometryRef.current = new LEDTipGeometry();
-    return ledGeometryRef.current;
+  // Initialize lead geometry
+  const leadGeometry = useMemo(() => {
+    leadGeometryRef.current = new LeadTipGeometry();
+    return leadGeometryRef.current;
   }, []);
 
   useFrame(() => {
     if (!meshRef.current || !isDrawing) return;
 
-    // Get world matrix for collision detection
+    // Use the tool's world matrix if provided, otherwise use the mesh's world matrix
+    const worldMatrix = toolWorldMatrix || meshRef.current.matrixWorld;
+    
+    // Update the mesh world matrix
     meshRef.current.updateMatrixWorld();
-    const worldMatrix = meshRef.current.matrixWorld;
 
-    // Check collisions
-    const contacts = ledGeometry.checkCollisionWithSurface(surfaceY, worldMatrix);
+    // Check collisions using the proper world matrix
+    const contacts = leadGeometry.checkCollisionWithSurface(surfaceY, worldMatrix);
     
     if (contacts.length > 0) {
       // Apply wear
-      ledGeometry.applyWear(contacts, worldMatrix, pressure * 0.001);
+      leadGeometry.applyWear(contacts, worldMatrix, pressure * 0.001);
       
       // Get contact shape for drawing
-      const contactShape = ledGeometry.getContactShape(contacts);
+      const contactShape = leadGeometry.getContactShape(contacts);
       
       // Notify parent component
       onContact(contacts, contactShape);
@@ -283,7 +286,7 @@ export const LEDTip = ({ position, rotation, pressure, isDrawing, surfaceY, onCo
   });
 
   return (
-    <mesh ref={meshRef} position={position} rotation={rotation} geometry={ledGeometry.geometry}>
+    <mesh ref={meshRef} position={position} rotation={rotation} geometry={leadGeometry.geometry}>
       <meshPhysicalMaterial 
         color="#2F2F2F" 
         roughness={0.3}

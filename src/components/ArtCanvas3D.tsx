@@ -4,7 +4,7 @@ import { OrbitControls, PerspectiveCamera, Text, Environment, Line } from '@reac
 import * as THREE from 'three';
 import { useToast } from '@/hooks/use-toast';
 import { ToolType, InteractionMode } from './ToolBar';
-import { LEDTip, ContactPoint, LEDTipGeometry } from './LEDTipPhysics';
+import { LeadTip, ContactPoint, LeadTipGeometry } from './LeadTipPhysics';
 
 interface Tool3DProps {
   type: ToolType;
@@ -36,7 +36,7 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, onDraw
   });
 
   return (
-    <group position={position} rotation={rotation}>
+    <group ref={groupRef} position={position} rotation={rotation}>
       {/* Pencil body - wooden shaft */}
       <mesh ref={meshRef}>
         <cylinderGeometry args={[0.04, 0.04, 1.5, 8]} />
@@ -69,13 +69,14 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, onDraw
         />
       </mesh>
       
-      {/* Advanced LED tip with volumetric physics */}
-      <LEDTip
+      {/* Advanced Lead tip with volumetric physics */}
+      <LeadTip
         position={[0, -1.0, 0]}
-        rotation={[Math.PI, 0, 0]}
+        rotation={[0, 0, 0]}
         pressure={pressure}
         isDrawing={isDrawing}
         surfaceY={-1}
+        toolWorldMatrix={groupRef.current?.matrixWorld}
         onContact={(contacts, shape) => {
           // Handle advanced drawing based on contact shape
           if (contacts.length > 0 && onDrawingPoints) {
