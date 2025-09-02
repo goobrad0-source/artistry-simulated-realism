@@ -249,9 +249,10 @@ export interface LeadTipProps {
   surfaceY: number;
   toolWorldMatrix?: THREE.Matrix4; // Add tool's world transformation
   onContact: (contacts: ContactPoint[], shape: any) => void;
+  onWearUpdate?: (avgWear: number, vertices: { position: THREE.Vector3; wear: number }[]) => void;
 }
 
-export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, toolWorldMatrix, onContact }: LeadTipProps) => {
+export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, toolWorldMatrix, onContact, onWearUpdate }: LeadTipProps) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const leadGeometryRef = useRef<LeadTipGeometry>();
   
@@ -282,6 +283,13 @@ export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, too
       
       // Notify parent component
       onContact(contacts, contactShape);
+
+      // Report wear metrics to parent
+      if (onWearUpdate) {
+        const avgWear = leadGeometry.vertices.reduce((sum, v) => sum + v.wear, 0) / leadGeometry.vertices.length;
+        const snapshot = leadGeometry.vertices.map(v => ({ position: v.position.clone(), wear: v.wear }));
+        onWearUpdate(avgWear, snapshot);
+      }
     }
   });
 

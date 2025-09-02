@@ -172,7 +172,7 @@ const Brush3D = ({ position, rotation, pressure, angle, isDrawing }: Tool3DProps
   );
 };
 
-const DrawingSurface = ({ surfaceType }: { surfaceType: CanvasSurface['type'] }) => {
+const DrawingSurface = ({ surfaceType, colorMap, displacementMap }: { surfaceType: CanvasSurface['type']; colorMap?: THREE.Texture; displacementMap?: THREE.Texture }) => {
   const surfaceRef = useRef<THREE.Mesh>(null);
 
   const getSurfaceProperties = () => {
@@ -229,6 +229,9 @@ const DrawingSurface = ({ surfaceType }: { surfaceType: CanvasSurface['type'] })
         clearcoatRoughness={0.1}
         normalMap={normalMap as any}
         normalScale={new THREE.Vector2(props.normalScale, props.normalScale)}
+        map={colorMap as any}
+        displacementMap={displacementMap as any}
+        displacementScale={surfaceType === 'paper' ? 0.006 : 0.0}
       />
     </mesh>
   );

@@ -30,6 +30,7 @@ export const ArtStudio = () => {
   const [surfaceType, setSurfaceType] = useState<SurfaceType>('canvas');
   const [pressure, setPressure] = useState(0.5);
   const [angle, setAngle] = useState(0);
+  const [roll, setRoll] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showToolPanel, setShowToolPanel] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
