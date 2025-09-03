@@ -42,18 +42,27 @@ export const ArtStudio = () => {
   const { engine, calculatePressureResponse, getState } = usePhysicsEngine();
   const { toast } = useToast();
 
-  // Enhanced pressure sensitivity with scroll wheel
+  // Enhanced pressure/gravity control with scroll wheel
+  const [gravity, setGravity] = useState(0.5); // 0 = lifting off paper, 1 = max pressure
+  
   const handleWheelPressure = useCallback((event: WheelEvent) => {
     event.preventDefault();
     const delta = event.deltaY > 0 ? -0.05 : 0.05;
-    const newPressure = Math.max(0.1, Math.min(1.0, pressure + delta));
-    setPressure(newPressure);
+    const newGravity = Math.max(-0.2, Math.min(1.0, gravity + delta)); // Allow negative for lift-off
+    setGravity(newGravity);
+    
+    // Calculate actual pressure based on gravity
+    if (newGravity <= 0) {
+      setPressure(0); // Lift off paper completely
+    } else {
+      setPressure(newGravity);
+    }
     
     // Haptic feedback simulation
     if ('vibrate' in navigator) {
       navigator.vibrate(10);
     }
-  }, [pressure, calculatePressureResponse]);
+  }, [gravity]);
 
   // Advanced keyboard shortcuts for professional workflow
   const handleKeyboard = useCallback((event: KeyboardEvent) => {
@@ -274,6 +283,7 @@ export const ArtStudio = () => {
             activeTool={activeTool}
             surfaceType={surfaceType}
             pressure={pressure}
+            gravity={gravity}
             angle={angle}
             roll={roll}
             mode={mode}
@@ -303,7 +313,8 @@ export const ArtStudio = () => {
       <div className="absolute bottom-20 left-0 right-0 h-6 ui-panel/90 backdrop-blur-sm border-t border-border flex items-center justify-between px-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">
           <span>Mode: {mode} | Physics: {isPlaying ? 'ACTIVE' : 'PAUSED'}</span>
-          <span>Surface: {surfaceType} | Pressure: {Math.round(pressure * 100)}% | Roll: {roll}°</span>
+          <span>Surface: {surfaceType} | Gravity: {Math.round(gravity * 100)}% | Roll: {roll}°</span>
+          {gravity <= 0 && <span className="text-primary">✈️ LIFTED OFF</span>}
         </div>
         <div className="flex items-center gap-4">
           <span>SPACE=Switch Mode | P=Pencil | B=Brush | E=Eraser</span>

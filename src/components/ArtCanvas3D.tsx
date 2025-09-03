@@ -5,6 +5,9 @@ import * as THREE from 'three';
 import { useToast } from '@/hooks/use-toast';
 import { ToolType, InteractionMode } from './ToolBar';
 import { LeadTip, ContactPoint, LeadTipGeometry } from './LeadTipPhysics';
+import { useDrawingStrokeSystem, DrawingStroke } from './DrawingStrokeSystem';
+import { CoordinateSmoothingEngine } from './CoordinateSmoothingEngine';
+import { WearIndicatorHUD } from './WearIndicatorHUD';
 
 interface Tool3DProps {
   type: ToolType;
@@ -69,21 +72,19 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, onDraw
         />
       </mesh>
       
-      {/* Advanced Lead tip with volumetric physics */}
+      {/* Advanced Lead tip with realistic wear tracking */}
       <LeadTip
         position={[0, -1.0, 0]}
         rotation={[0, 0, 0]}
         pressure={pressure}
         isDrawing={isDrawing}
         surfaceY={-1}
+        roll={0} // Will be connected to parent's roll prop
         toolWorldMatrix={groupRef.current?.matrixWorld}
         onContact={(contacts, shape) => {
-          // Handle advanced drawing based on contact shape
           if (contacts.length > 0 && onDrawingPoints) {
             const contact = contacts[0];
             const drawPoint = new THREE.Vector3(contact.position.x, contact.position.y + 0.001, contact.position.z);
-            
-            // Use contact shape for advanced line rendering
             onDrawingPoints((prev: THREE.Vector3[]) => {
               const lastPoint = prev[prev.length - 1];
               if (!lastPoint || lastPoint.distanceTo(drawPoint) > 0.005) {
@@ -92,6 +93,9 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, onDraw
               return prev;
             });
           }
+        }}
+        onWearUpdate={(avgWear, vertices) => {
+          // Handle wear updates for realistic physics
         }}
       />
       
@@ -182,45 +186,85 @@ const DrawingSurface = ({ surfaceType, colorMap, displacementMap }: { surfaceTyp
           color: '#F5F5DC',
           roughness: 0.9,
           normalScale: 1.5,
+          displacement: 0.008, // Higher relief for canvas texture
         };
       case 'paper':
         return {
           color: '#FFFEF7',
           roughness: 0.8,
           normalScale: 0.8,
+          displacement: 0.003, // Subtle paper texture
         };
       default: // whiteboard
         return {
           color: '#FFFFFF',
           roughness: 0.1,
           normalScale: 0.2,
+          displacement: 0.001, // Nearly flat
         };
     }
   };
 
   const props = getSurfaceProperties();
 
-  // Procedural micro-normal texture for realistic surface grain
-  const normalMap = useMemo(() => {
-    const size = 128;
-    const data = new Uint8Array(size * size * 4);
-    for (let i = 0; i < size * size; i++) {
-      const v = Math.floor(128 + (Math.random() - 0.5) * 40); // subtle noise
-      data[i * 4] = v;
-      data[i * 4 + 1] = v;
-      data[i * 4 + 2] = v;
-      data[i * 4 + 3] = 255;
+  // Enhanced procedural surface with realistic micro-topology
+  const [normalMap, displacementMesh] = useMemo(() => {
+    const size = 256; // Higher res for better topology
+    const normalData = new Uint8Array(size * size * 4);
+    const displacementData = new Float32Array(size * size);
+    
+    for (let i = 0; i < size; i++) {
+      for (let j = 0; j < size; j++) {
+        const index = i * size + j;
+        
+        // Multi-octave noise for realistic paper/canvas texture
+        const x = i / size;
+        const y = j / size;
+        
+        let noise = 0;
+        noise += Math.sin(x * 100) * Math.cos(y * 100) * 0.3; // Fine grain
+        noise += Math.sin(x * 20) * Math.cos(y * 20) * 0.4;   // Medium grain
+        noise += Math.sin(x * 5) * Math.cos(y * 5) * 0.3;     // Coarse grain
+        
+        // Surface-specific texture adjustments
+        if (surfaceType === 'canvas') {
+          noise += Math.sin(x * 200) * Math.sin(y * 150) * 0.2; // Canvas weave
+        } else if (surfaceType === 'paper') {
+          noise += (Math.random() - 0.5) * 0.1; // Paper fiber randomness
+        }
+        
+        const normalizedNoise = (noise + 1) * 0.5; // 0-1 range
+        const height = normalizedNoise * props.displacement;
+        
+        // Store displacement for 3D topology
+        displacementData[index] = height;
+        
+        // Calculate normals for lighting
+        const normalValue = Math.floor(128 + (normalizedNoise - 0.5) * 127);
+        normalData[index * 4] = normalValue;
+        normalData[index * 4 + 1] = normalValue;
+        normalData[index * 4 + 2] = 255; // Point up mostly
+        normalData[index * 4 + 3] = 255;
+      }
     }
-    const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(surfaceType === 'canvas' ? 20 : surfaceType === 'paper' ? 10 : 2, surfaceType === 'canvas' ? 16 : surfaceType === 'paper' ? 8 : 2);
-    texture.needsUpdate = true;
-    return texture;
-  }, [surfaceType]);
+    
+    const normalTexture = new THREE.DataTexture(normalData, size, size, THREE.RGBAFormat);
+    normalTexture.wrapS = normalTexture.wrapT = THREE.RepeatWrapping;
+    normalTexture.repeat.set(surfaceType === 'canvas' ? 4 : surfaceType === 'paper' ? 2 : 1, surfaceType === 'canvas' ? 3 : surfaceType === 'paper' ? 1.5 : 1);
+    normalTexture.needsUpdate = true;
+    
+    // Create displacement texture
+    const displacementTexture = new THREE.DataTexture(displacementData, size, size, THREE.RedFormat, THREE.FloatType);
+    displacementTexture.wrapS = displacementTexture.wrapT = THREE.RepeatWrapping;
+    displacementTexture.repeat.copy(normalTexture.repeat);
+    displacementTexture.needsUpdate = true;
+    
+    return [normalTexture, displacementTexture];
+  }, [surfaceType, props.displacement]);
 
   return (
     <mesh ref={surfaceRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]}>
-      <planeGeometry args={[20, 15]} />
+      <planeGeometry args={[20, 15, 128, 96]} /> {/* Higher res geometry for displacement */}
       <meshPhysicalMaterial 
         color={props.color}
         roughness={props.roughness}
@@ -230,8 +274,8 @@ const DrawingSurface = ({ surfaceType, colorMap, displacementMap }: { surfaceTyp
         normalMap={normalMap as any}
         normalScale={new THREE.Vector2(props.normalScale, props.normalScale)}
         map={colorMap as any}
-        displacementMap={displacementMap as any}
-        displacementScale={surfaceType === 'paper' ? 0.006 : 0.0}
+        displacementMap={displacementMesh as any}
+        displacementScale={props.displacement}
       />
     </mesh>
   );
@@ -240,6 +284,7 @@ const DrawingSurface = ({ surfaceType, colorMap, displacementMap }: { surfaceTyp
 const Scene = ({ 
   activeTool, 
   pressure, 
+  gravity,
   angle, 
   isDrawing, 
   surfaceType,
@@ -247,6 +292,7 @@ const Scene = ({
 }: {
   activeTool: Tool3DProps['type'];
   pressure: number;
+  gravity: number;
   angle: number;
   isDrawing: boolean;
   surfaceType: CanvasSurface['type'];
@@ -264,6 +310,14 @@ const Scene = ({
   const [planeDragOffset, setPlaneDragOffset] = useState<[number, number]>([0, 0]);
   const [movementDirection, setMovementDirection] = useState<[number, number]>([0, 0]);
   const [targetAzimuth, setTargetAzimuth] = useState(0);
+  
+  // Advanced drawing and wear tracking
+  const { strokes, currentStroke, startStroke, addPointToStroke, endStroke, clearStrokes } = useDrawingStrokeSystem();
+  const [coordinateEngine] = useState(() => new CoordinateSmoothingEngine());
+  const [leadWear, setLeadWear] = useState(0);
+  const [wearVertices, setWearVertices] = useState<{ position: THREE.Vector3; wear: number }[]>([]);
+  const [showWearHUD, setShowWearHUD] = useState(false);
+  const [surfaceMesh, setSurfaceMesh] = useState<THREE.Mesh | null>(null);
   
   const toolRef = useRef<THREE.Group>(null);
   const intersectionPoint = useRef<THREE.Vector3>(new THREE.Vector3());
@@ -355,39 +409,52 @@ const Scene = ({
     }
 
     if (!isDragging) {
-      // Apply gravity when not being dragged
-      newVelocity[1] += GRAVITY;
+      // Apply gravity-based physics - when gravity <= 0, lift pencil off paper
+      if (gravity > 0) {
+        newVelocity[1] += GRAVITY * gravity; // Scale gravity by user control
+      } else {
+        // Lift off paper when gravity is negative/zero
+        const liftForce = Math.abs(gravity) * 0.02; // Convert negative gravity to upward force
+        newVelocity[1] += liftForce;
+        
+        // Ensure tool lifts off completely
+        if (newPosition[1] < SURFACE_Y + 0.05) {
+          newPosition[1] = SURFACE_Y + 0.05 + Math.abs(gravity) * 0.1;
+        }
+      }
       
       // Integrate velocity to position
       newPosition[0] += newVelocity[0] * delta;
       newPosition[1] += newVelocity[1] * delta;
       newPosition[2] += newVelocity[2] * delta;
 
-      // Check surface collision using actual tip position
-      const newTipPosition = calculateTipPosition(newPosition, newRotation);
-      if (newTipPosition[1] <= SURFACE_Y) {
-        // Collision! Adjust tool position so tip stays on surface
-        const penetration = SURFACE_Y - newTipPosition[1];
-        newPosition[1] += penetration; // Lift tool up to keep tip on surface
-        
-        // Elastic bounce only if moving downward
-        if (newVelocity[1] < 0) {
-          newVelocity[1] = -newVelocity[1] * ELASTIC_DAMPING;
+      // Check surface collision using actual tip position ONLY if gravity > 0
+      if (gravity > 0) {
+        const newTipPosition = calculateTipPosition(newPosition, newRotation);
+        if (newTipPosition[1] <= SURFACE_Y) {
+          // Collision! Adjust tool position so tip stays on surface
+          const penetration = SURFACE_Y - newTipPosition[1];
+          newPosition[1] += penetration; // Lift tool up to keep tip on surface
           
-          // Collision force feedback
-          const collisionForce = Math.abs(newVelocity[1]) * 10;
-          setSurfaceContactForce(collisionForce);
-          
-          // Subtle lateral vibration
-          if (collisionForce > 0.5) {
-            newPosition[0] += (Math.random() - 0.5) * 0.01 * collisionForce;
-            newPosition[2] += (Math.random() - 0.5) * 0.01 * collisionForce;
+          // Elastic bounce only if moving downward
+          if (newVelocity[1] < 0) {
+            newVelocity[1] = -newVelocity[1] * ELASTIC_DAMPING;
+            
+            // Collision force feedback
+            const collisionForce = Math.abs(newVelocity[1]) * 10;
+            setSurfaceContactForce(collisionForce);
+            
+            // Subtle lateral vibration
+            if (collisionForce > 0.5) {
+              newPosition[0] += (Math.random() - 0.5) * 0.01 * collisionForce;
+              newPosition[2] += (Math.random() - 0.5) * 0.01 * collisionForce;
+            }
           }
+          
+          // Friction when in contact
+          newVelocity[0] *= FRICTION;
+          newVelocity[2] *= FRICTION;
         }
-        
-        // Friction when in contact
-        newVelocity[0] *= FRICTION;
-        newVelocity[2] *= FRICTION;
       }
 
       // Air resistance
@@ -461,11 +528,11 @@ const Scene = ({
       setToolPosition(newToolPosition);
       setToolVelocity([0, 0, 0]); // Reset velocity when dragging
 
-      // Drawing when the tip touches the surface using actual tip position
+      // Drawing when the tip touches the surface and has gravity/pressure
       const actualTipPosition = calculateTipPosition(newToolPosition, toolRotation);
       const isOnSurface = Math.abs(actualTipPosition[1] - SURFACE_Y) < 0.02;
       const effectivePressure = Math.min(1, pressure + surfaceContactForce * 0.05);
-      const hasPressure = effectivePressure > 0.05;
+      const hasPressure = effectivePressure > 0.05 && gravity > 0; // Only draw with positive gravity
 
       if (isOnSurface && hasPressure) {
         const drawPoint = new THREE.Vector3(actualTipPosition[0], SURFACE_Y + 0.001, actualTipPosition[2]);
@@ -596,12 +663,13 @@ interface ArtCanvas3DProps {
   activeTool: Tool3DProps['type'];
   surfaceType: CanvasSurface['type'];
   pressure: number;
+  gravity: number;
   angle: number;
   roll: number;
   mode: InteractionMode;
 }
 
-export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, angle, roll, mode }: ArtCanvas3DProps) => {
+export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, gravity, angle, roll, mode }: ArtCanvas3DProps) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const { toast } = useToast();
 
@@ -630,6 +698,7 @@ export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, angle, roll, mo
           <Scene 
             activeTool={activeTool}
             pressure={pressure}
+            gravity={gravity}
             angle={angle}
             isDrawing={isDrawing}
             surfaceType={surfaceType}

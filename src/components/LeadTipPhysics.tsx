@@ -116,16 +116,29 @@ export class LeadTipGeometry {
     }
   }
 
-  // Advanced collision detection with surface
+  // Advanced collision detection with surface - find LOWEST vertex for accurate drawing
   checkCollisionWithSurface(surfaceY: number, toolWorldMatrix: THREE.Matrix4): ContactPoint[] {
     const contacts: ContactPoint[] = [];
+    let lowestVertex: LeadVertex | null = null;
+    let lowestWorldY = Infinity;
     
+    // First pass: find the absolute lowest vertex in world space
     this.vertices.forEach(vertex => {
-      // Transform vertex to world space
       const worldPos = vertex.position.clone().applyMatrix4(toolWorldMatrix);
+      if (worldPos.y < lowestWorldY) {
+        lowestWorldY = worldPos.y;
+        lowestVertex = vertex;
+      }
+    });
+    
+    // Second pass: check collision for vertices within tolerance of the lowest point
+    const tolerance = 0.003; // Small tolerance for multiple contact points
+    this.vertices.forEach(vertex => {
+      const worldPos = vertex.position.clone().applyMatrix4(toolWorldMatrix);
+      const isAtLowestLevel = Math.abs(worldPos.y - lowestWorldY) < tolerance;
       
-      // Check if vertex is below surface
-      if (worldPos.y <= surfaceY + 0.001) {
+      // Only consider vertices at the lowest level for collision
+      if (isAtLowestLevel && worldPos.y <= surfaceY + 0.001) {
         const penetration = surfaceY - worldPos.y;
         const contact: ContactPoint = {
           position: new THREE.Vector3(worldPos.x, surfaceY, worldPos.z),
@@ -261,7 +274,7 @@ export interface LeadTipProps {
   onWearUpdate?: (avgWear: number, vertices: { position: THREE.Vector3; wear: number }[]) => void;
 }
 
-export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, toolWorldMatrix, onContact, onWearUpdate }: LeadTipProps) => {
+export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, toolWorldMatrix, onContact, onWearUpdate, roll = 0 }: LeadTipProps & { roll?: number }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const leadGeometryRef = useRef<LeadTipGeometry>();
   
@@ -306,7 +319,12 @@ export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, too
 
   return (
     <group>
-      <mesh ref={meshRef} position={position} rotation={rotation} geometry={leadGeometry.geometry}>
+      <mesh 
+        ref={meshRef} 
+        position={position} 
+        rotation={[rotation[0], rotation[1] + (roll || 0), rotation[2]]}
+        geometry={leadGeometry.geometry}
+      >
         <meshPhysicalMaterial 
           color="#2F2F2F" 
           roughness={0.3}
@@ -316,11 +334,15 @@ export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, too
         />
       </mesh>
       
-      {/* Debug visualization of contact points */}
-      {leadGeometry.vertices.map((vertex, i) => vertex.wear > 0.1 && (
-        <mesh key={i} position={vertex.position} scale={[0.002, 0.002, 0.002]}>
+      {/* Enhanced wear visualization with different colors based on wear level */}
+      {leadGeometry.vertices.map((vertex, i) => vertex.wear > 0.05 && (
+        <mesh key={i} position={vertex.position} scale={[0.002 * (1 + vertex.wear), 0.002 * (1 + vertex.wear), 0.002 * (1 + vertex.wear)]}>
           <sphereGeometry args={[1]} />
-          <meshBasicMaterial color={`hsl(${60 - vertex.wear * 60}, 100%, 50%)`} />
+          <meshBasicMaterial 
+            color={`hsl(${Math.max(0, 120 - vertex.wear * 120)}, 100%, ${50 + vertex.wear * 30}%)`}
+            transparent
+            opacity={0.7 + vertex.wear * 0.3}
+          />
         </mesh>
       ))}
     </group>

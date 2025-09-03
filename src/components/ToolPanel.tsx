@@ -99,9 +99,8 @@ export const ToolPanel = ({
 
         {/* Tool Properties */}
         <Tabs defaultValue="physics" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="physics">Physics</TabsTrigger>
-            <TabsTrigger value="material">Material</TabsTrigger>
             <TabsTrigger value="surface">Surface</TabsTrigger>
           </TabsList>
 
@@ -179,101 +178,7 @@ export const ToolPanel = ({
                 </p>
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="material" className="space-y-4 mt-4">
-            {/* Pencil Properties */}
-            {activeTool === 'pencil' && (
-              <div className="space-y-3">
-                <label className="text-sm font-medium">Lead Hardness</label>
-                <div className="grid grid-cols-7 gap-1">
-                  {leadTypes.map((type, index) => (
-                    <Button
-                      key={type}
-                      variant={leadHardness === index ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setLeadHardness(index)}
-                      className="text-xs p-1"
-                    >
-                      {type}
-                    </Button>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Affects softness, darkness, and wear rate
-                </p>
-              </div>
-            )}
-
-            {/* Brush Properties */}
-            {activeTool === 'brush' && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Brush Size</label>
-                  <Slider
-                    value={[brushSize]}
-                    onValueChange={(value) => setBrushSize(value[0])}
-                    max={20}
-                    min={1}
-                    step={1}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Paint Type</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['oil', 'acrylic', 'watercolor'] as const).map((type) => (
-                      <Button
-                        key={type}
-                        variant={paintType === type ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setPaintType(type)}
-                        className="text-xs capitalize"
-                      >
-                        {type}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                  <Palette className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    Palette mixing & dipping simulation
-                  </span>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="surface" className="space-y-4 mt-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4" />
-                <label className="text-sm font-medium">Drawing Surface</label>
-              </div>
-              <div className="space-y-2">
-                {surfaces.map((surface) => (
-                  <Button
-                    key={surface.id}
-                    variant={surfaceType === surface.id ? "default" : "secondary"}
-                    onClick={() => onSurfaceChange(surface.id)}
-                    className="w-full justify-start h-auto p-3"
-                  >
-                    <div className="text-left">
-                      <div className="font-medium">{surface.name}</div>
-                      <div className="text-xs text-muted-foreground">{surface.texture}</div>
-                    </div>
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Surface texture affects tool interaction and stroke appearance
-              </p>
-            </div>
-          </TabsContent>
-        </Tabs>
+        </div>
 
         <Separator />
 
