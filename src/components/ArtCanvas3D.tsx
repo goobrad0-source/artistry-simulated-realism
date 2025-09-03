@@ -597,10 +597,11 @@ interface ArtCanvas3DProps {
   surfaceType: CanvasSurface['type'];
   pressure: number;
   angle: number;
+  roll: number;
   mode: InteractionMode;
 }
 
-export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, angle, mode }: ArtCanvas3DProps) => {
+export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, angle, roll, mode }: ArtCanvas3DProps) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const { toast } = useToast();
 

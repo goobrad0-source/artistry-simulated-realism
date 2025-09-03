@@ -119,12 +119,20 @@ export const ArtStudio = () => {
           setIsFullscreen(!isFullscreen);
         }
         break;
+      case 'q':
+        setRoll(Math.max(-45, roll - 5));
+        toast({ title: "Roll Left", description: `Pencil roll: ${roll - 5}°` });
+        break;
+      case 'e':
+        setRoll(Math.min(45, roll + 5));
+        toast({ title: "Roll Right", description: `Pencil roll: ${roll + 5}°` });
+        break;
       case 'tab':
         event.preventDefault();
         setShowToolPanel(!showToolPanel);
         break;
     }
-  }, [toast, isFullscreen, showToolPanel, mode]);
+  }, [toast, isFullscreen, showToolPanel, mode, roll]);
 
   useEffect(() => {
     window.addEventListener('wheel', handleWheelPressure, { passive: false });
@@ -267,6 +275,7 @@ export const ArtStudio = () => {
             surfaceType={surfaceType}
             pressure={pressure}
             angle={angle}
+            roll={roll}
             mode={mode}
           />
         </div>
@@ -294,11 +303,11 @@ export const ArtStudio = () => {
       <div className="absolute bottom-20 left-0 right-0 h-6 ui-panel/90 backdrop-blur-sm border-t border-border flex items-center justify-between px-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">
           <span>Mode: {mode} | Physics: {isPlaying ? 'ACTIVE' : 'PAUSED'}</span>
-          <span>Surface: {surfaceType} | Pressure: {Math.round(pressure * 100)}%</span>
+          <span>Surface: {surfaceType} | Pressure: {Math.round(pressure * 100)}% | Roll: {roll}°</span>
         </div>
         <div className="flex items-center gap-4">
           <span>SPACE=Switch Mode | P=Pencil | B=Brush | E=Eraser</span>
-          <span>Scroll=Pressure | Ctrl+S=Save</span>
+          <span>Q/E=Roll | Scroll=Pressure | Ctrl+S=Save</span>
         </div>
       </div>
     </div>

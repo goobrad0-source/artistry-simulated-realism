@@ -140,44 +140,53 @@ export class LeadTipGeometry {
     return contacts;
   }
 
-  // Apply wear based on contact
+  // Apply wear based on contact with enhanced realism
   applyWear(contacts: ContactPoint[], toolWorldMatrix: THREE.Matrix4, wearRate: number = 0.001) {
     const inverseMatrix = toolWorldMatrix.clone().invert();
     
     contacts.forEach(contact => {
-      // Find closest vertex to contact point
-      let closestVertex: LeadVertex | null = null;
-      let minDistance = Infinity;
+      // Find all vertices within wear radius for more realistic wear
+      const wearRadius = 0.008;
+      const affectedVertices: { vertex: LeadVertex; distance: number; influence: number }[] = [];
       
       this.vertices.forEach(vertex => {
         const worldPos = vertex.position.clone().applyMatrix4(toolWorldMatrix);
         const distance = worldPos.distanceTo(contact.position);
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestVertex = vertex;
+        if (distance < wearRadius) {
+          const influence = 1 - (distance / wearRadius); // Falloff
+          affectedVertices.push({ vertex, distance, influence });
         }
       });
 
-      if (closestVertex && minDistance < 0.01) {
-        // Apply wear based on pressure and hardness
-        const wearAmount = (contact.pressure * wearRate) / closestVertex.hardness;
-        closestVertex.wear = Math.min(1, closestVertex.wear + wearAmount);
+      // Apply wear to all affected vertices
+      affectedVertices.forEach(({ vertex, influence }) => {
+        // Enhanced wear calculation with material properties
+        const pressureFactor = Math.pow(contact.pressure, 1.2); // Non-linear pressure response
+        const hardnessFactor = 1 / Math.pow(vertex.hardness, 0.8);
+        const wearAmount = pressureFactor * wearRate * hardnessFactor * influence * 0.1;
         
-        // Modify vertex position based on wear
-        const wearDirection = new THREE.Vector3(0, 1, 0); // Wear upward
-        const wearOffset = wearDirection.multiplyScalar(closestVertex.wear * 0.02);
-        closestVertex.position.copy(closestVertex.originalPosition).add(wearOffset);
+        vertex.wear = Math.min(1, vertex.wear + wearAmount);
         
-        // Also add some random wear for realistic effect
-        if (closestVertex.wear > 0.1) {
-          const randomWear = new THREE.Vector3(
-            (Math.random() - 0.5) * 0.002 * closestVertex.wear,
-            0,
-            (Math.random() - 0.5) * 0.002 * closestVertex.wear
-          );
-          closestVertex.position.add(randomWear);
+        // Realistic wear deformation - lead wears away creating flat spots
+        const wearDirection = contact.normal.clone().multiplyScalar(-1); // Wear in direction of contact
+        const lateralWear = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.001 * vertex.wear,
+          0,
+          (Math.random() - 0.5) * 0.001 * vertex.wear
+        );
+        
+        const totalWearOffset = wearDirection
+          .multiplyScalar(vertex.wear * 0.015)
+          .add(lateralWear);
+          
+        vertex.position.copy(vertex.originalPosition).add(totalWearOffset);
+        
+        // Create flat spots where heavy wear occurs
+        if (vertex.wear > 0.3) {
+          const flatteningFactor = (vertex.wear - 0.3) * 0.02;
+          vertex.position.y += flatteningFactor;
         }
-      }
+      });
     });
 
     // Update geometry after wear
@@ -263,25 +272,27 @@ export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, too
   }, []);
 
   useFrame(() => {
-    if (!meshRef.current || !isDrawing) return;
+    if (!meshRef.current) return;
+
+    // Always update the mesh world matrix
+    meshRef.current.updateMatrixWorld();
 
     // Use the tool's world matrix if provided, otherwise use the mesh's world matrix
     const worldMatrix = toolWorldMatrix || meshRef.current.matrixWorld;
-    
-    // Update the mesh world matrix
-    meshRef.current.updateMatrixWorld();
 
-    // Check collisions using the proper world matrix
+    // Check collisions using the proper world matrix - even when not drawing for visualization
     const contacts = leadGeometry.checkCollisionWithSurface(surfaceY, worldMatrix);
     
     if (contacts.length > 0) {
-      // Apply wear
-      leadGeometry.applyWear(contacts, worldMatrix, pressure * 0.001);
+      // Only apply wear when actually drawing
+      if (isDrawing) {
+        leadGeometry.applyWear(contacts, worldMatrix, pressure * 0.002);
+      }
       
       // Get contact shape for drawing
       const contactShape = leadGeometry.getContactShape(contacts);
       
-      // Notify parent component
+      // Always notify parent component of contacts (for visualization)
       onContact(contacts, contactShape);
 
       // Report wear metrics to parent
@@ -294,14 +305,24 @@ export const LeadTip = ({ position, rotation, pressure, isDrawing, surfaceY, too
   });
 
   return (
-    <mesh ref={meshRef} position={position} rotation={rotation} geometry={leadGeometry.geometry}>
-      <meshPhysicalMaterial 
-        color="#2F2F2F" 
-        roughness={0.3}
-        metalness={0.1}
-        emissive="#111111"
-        emissiveIntensity={0.1}
-      />
-    </mesh>
+    <group>
+      <mesh ref={meshRef} position={position} rotation={rotation} geometry={leadGeometry.geometry}>
+        <meshPhysicalMaterial 
+          color="#2F2F2F" 
+          roughness={0.3}
+          metalness={0.1}
+          emissive="#111111"
+          emissiveIntensity={0.1}
+        />
+      </mesh>
+      
+      {/* Debug visualization of contact points */}
+      {leadGeometry.vertices.map((vertex, i) => vertex.wear > 0.1 && (
+        <mesh key={i} position={vertex.position} scale={[0.002, 0.002, 0.002]}>
+          <sphereGeometry args={[1]} />
+          <meshBasicMaterial color={`hsl(${60 - vertex.wear * 60}, 100%, 50%)`} />
+        </mesh>
+      ))}
+    </group>
   );
 };
