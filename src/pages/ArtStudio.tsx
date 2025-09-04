@@ -100,9 +100,13 @@ export const ArtStudio = () => {
       case 'delete':
       case 'backspace':
         if (activeTool !== 'eraser') {
+          // Smooth flip to eraser - rotate 180 degrees around X axis
+          setAngle(Math.PI);
           setActiveTool('eraser');
           toast({ title: "Eraser Tool", description: "Pencil flipped! Physics-based erasing enabled" });
         } else {
+          // Smooth flip back to pencil - return to normal orientation  
+          setAngle(0);
           setActiveTool('pencil');
           toast({ title: "Pencil Tool", description: "Back to drawing mode" });
         }

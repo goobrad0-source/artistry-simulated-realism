@@ -72,9 +72,9 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
         />
       </mesh>
       
-      {/* Advanced Lead tip with realistic wear tracking */}
+      {/* Advanced Lead tip with realistic wear tracking - aligned with pencil axis */}
       <LeadTip
-        position={[0, -0.92, 0]}
+        position={[0, -0.75, 0]}
         rotation={rotation}
         pressure={pressure}
         isDrawing={isDrawing}
