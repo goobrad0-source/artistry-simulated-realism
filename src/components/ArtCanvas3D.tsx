@@ -25,7 +25,7 @@ interface CanvasSurface {
   roughness: number;
 }
 
-const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, onDrawingPoints }: Tool3DProps & { onDrawingPoints?: (pointsUpdater: (prev: THREE.Vector3[]) => THREE.Vector3[]) => void }) => {
+const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, canDraw, onDrawPoint }: Tool3DProps & { roll?: number; canDraw?: boolean; onDrawPoint?: (point: THREE.Vector3) => void }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const tipRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -74,24 +74,19 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, onDraw
       
       {/* Advanced Lead tip with realistic wear tracking */}
       <LeadTip
-        position={[0, -1.0, 0]}
-        rotation={[0, 0, 0]}
+        position={[0, -0.96, 0]}
+        rotation={rotation}
         pressure={pressure}
         isDrawing={isDrawing}
         surfaceY={-1}
-        roll={0} // Will be connected to parent's roll prop
+        roll={roll || 0}
         toolWorldMatrix={groupRef.current?.matrixWorld}
-        onContact={(contacts, shape) => {
-          if (contacts.length > 0 && onDrawingPoints) {
+        onContact={(contacts) => {
+          if (contacts.length > 0 && canDraw && onDrawPoint) {
+            // Use the lowest/closest contact point for drawing
             const contact = contacts[0];
             const drawPoint = new THREE.Vector3(contact.position.x, contact.position.y + 0.001, contact.position.z);
-            onDrawingPoints((prev: THREE.Vector3[]) => {
-              const lastPoint = prev[prev.length - 1];
-              if (!lastPoint || lastPoint.distanceTo(drawPoint) > 0.005) {
-                return [...prev, drawPoint];
-              }
-              return prev;
-            });
+            onDrawPoint(drawPoint);
           }
         }}
         onWearUpdate={(avgWear, vertices) => {
@@ -288,7 +283,8 @@ const Scene = ({
   angle, 
   isDrawing, 
   surfaceType,
-  mode
+  mode,
+  roll
 }: {
   activeTool: Tool3DProps['type'];
   pressure: number;
@@ -297,6 +293,7 @@ const Scene = ({
   isDrawing: boolean;
   surfaceType: CanvasSurface['type'];
   mode: InteractionMode;
+  roll: number;
 }) => {
   const { camera, raycaster, pointer, scene } = useThree();
   const [toolPosition, setToolPosition] = useState<[number, number, number]>([0, 0.5, 0]);
@@ -305,7 +302,9 @@ const Scene = ({
   const [grabPoint, setGrabPoint] = useState<[number, number, number]>([0, 0, 0]);
   const [grabOffset, setGrabOffset] = useState<[number, number, number]>([0, 0, 0]);
   const [isDragging, setIsDragging] = useState(false);
-  const [drawingPoints, setDrawingPoints] = useState<THREE.Vector3[]>([]);
+  const [segments, setSegments] = useState<{ points: THREE.Vector3[]; width: number; color: string; opacity: number; tool: string }[]>([]);
+  const [activeSegment, setActiveSegment] = useState<{ points: THREE.Vector3[]; width: number; color: string; opacity: number; tool: string } | null>(null);
+  const drawingActiveRef = useRef(false);
   const [surfaceContactForce, setSurfaceContactForce] = useState(0);
   const [planeDragOffset, setPlaneDragOffset] = useState<[number, number]>([0, 0]);
   const [movementDirection, setMovementDirection] = useState<[number, number]>([0, 0]);
@@ -324,10 +323,65 @@ const Scene = ({
   const lastToolPosition = useRef<[number, number, number]>([0, 0.5, 0]);
   const lastMoveTime = useRef<number>(0);
   
+  // Stroke style helpers and drawing point handler
+  const getSurfaceEraseColor = () => {
+    switch (surfaceType) {
+      case 'canvas':
+        return '#F5F5DC';
+      case 'paper':
+        return '#FFFEF7';
+      default:
+        return '#FFFFFF';
+    }
+  };
+
+  const computeStrokeStyle = (tool: string, eff: number) => {
+    if (tool === 'eraser') {
+      return { width: 6 + eff * 10, opacity: 1.0, color: getSurfaceEraseColor() };
+    }
+    if (tool === 'brush') {
+      return { width: 2 + eff * 6, opacity: Math.min(1, 0.5 + eff * 0.5), color: '#2F2F2F' };
+    }
+    if (tool === 'pen') {
+      return { width: 2 + eff * 2, opacity: Math.min(1, 0.7 + eff * 0.3), color: '#2F2F2F' };
+    }
+    if (tool === 'crayon') {
+      return { width: 3 + eff * 4, opacity: Math.min(1, 0.4 + eff * 0.6), color: '#2F2F2F' };
+    }
+    // pencil/mechanicalPencil: constant width, pressure affects darkness
+    return { width: 2, opacity: Math.min(1, 0.3 + eff * 0.7), color: '#2F2F2F' };
+  };
+
+  const finalizeActiveSegment = () => {
+    if (activeSegment && activeSegment.points.length > 1) {
+      setSegments(prev => [...prev, activeSegment]);
+    }
+    setActiveSegment(null);
+    drawingActiveRef.current = false;
+  };
+
+  const handleDrawPoint = (point: THREE.Vector3) => {
+    const eff = Math.min(1, pressure + surfaceContactForce * 0.05);
+    if (!drawingActiveRef.current || !activeSegment) {
+      const style = computeStrokeStyle(activeTool, eff);
+      setActiveSegment({ points: [point.clone()], ...style, tool: activeTool });
+      drawingActiveRef.current = true;
+      return;
+    }
+    setActiveSegment(prev => {
+      if (!prev) return prev;
+      const last = prev.points[prev.points.length - 1];
+      if (!last || last.distanceTo(point) > 0.005) {
+        return { ...prev, points: [...prev.points, point.clone()] };
+      }
+      return prev;
+    });
+  };
+
   // Physics constants
   const GRAVITY = -0.008;
   const SURFACE_Y = -1; // Surface position
-  const TOOL_LENGTH = 1.05; // Tool length (to tip) for collision
+  const TOOL_LENGTH = 0.96; // Tool length (to tip) for collision (matches LeadTip position)
   const ELASTIC_DAMPING = 0.85;
   const COLLISION_STIFFNESS = 0.3;
   const FRICTION = 0.95;
@@ -528,21 +582,14 @@ const Scene = ({
       setToolPosition(newToolPosition);
       setToolVelocity([0, 0, 0]); // Reset velocity when dragging
 
-      // Drawing when the tip touches the surface and has gravity/pressure
+      // Split stroke if lifting off or losing pressure/contact
       const actualTipPosition = calculateTipPosition(newToolPosition, toolRotation);
       const isOnSurface = Math.abs(actualTipPosition[1] - SURFACE_Y) < 0.02;
-      const effectivePressure = Math.min(1, pressure + surfaceContactForce * 0.05);
-      const hasPressure = effectivePressure > 0.05 && gravity > 0; // Only draw with positive gravity
+      const hasPressure = gravity > 0 && pressure > 0.05;
+      if (!(isOnSurface && hasPressure) && drawingActiveRef.current) {
+        finalizeActiveSegment();
+      }
 
-      if (isOnSurface && hasPressure) {
-        const drawPoint = new THREE.Vector3(actualTipPosition[0], SURFACE_Y + 0.001, actualTipPosition[2]);
-        setDrawingPoints((prev) => {
-          const lastPoint = prev[prev.length - 1];
-          if (!lastPoint || lastPoint.distanceTo(drawPoint) > 0.005) {
-            return [...prev, drawPoint];
-          }
-          return prev;
-        });
       }
     }
   };
@@ -564,13 +611,24 @@ const Scene = ({
     };
 
     const toolComponent = (() => {
+      const canDraw = isDragging && gravity > 0;
+      const onDrawPoint = (point: THREE.Vector3) => {
+        // handled in Scene via segments state (set in callbacks below)
+        handleDrawPoint(point);
+      };
       switch (activeTool) {
-        case 'pencil':
-          return <Pencil3D {...baseProps} onDrawingPoints={setDrawingPoints} />;
+        case 'pencil': {
+          const rot = toolRotation;
+          return <Pencil3D {...baseProps} rotation={rot} roll={0} canDraw={canDraw} onDrawPoint={onDrawPoint} />;
+        }
         case 'brush':
           return <Brush3D {...baseProps} />;
+        case 'eraser': {
+          const rot: [number, number, number] = [toolRotation[0] + Math.PI, toolRotation[1], toolRotation[2]];
+          return <Pencil3D {...baseProps} rotation={rot} roll={0} canDraw={canDraw} onDrawPoint={onDrawPoint} />;
+        }
         default:
-          return <Pencil3D {...baseProps} onDrawingPoints={setDrawingPoints} />;
+          return <Pencil3D {...baseProps} canDraw={canDraw} onDrawPoint={onDrawPoint} />;
       }
     })();
 
@@ -595,19 +653,34 @@ const Scene = ({
 
   // Render drawing strokes
   const renderStrokes = () => {
-    if (drawingPoints.length < 2) return null;
-    
-    const points = drawingPoints;
-    const effectivePressure = Math.min(1, pressure + surfaceContactForce * 0.05);
-    const width = 2 + effectivePressure * 6; // screen-space line width
-    
+    if (segments.length === 0 && !activeSegment) return null;
+
     return (
-      <Line
-        points={points}
-        color="#2F2F2F"
-        lineWidth={width}
-        dashed={false}
-      />
+      <>
+        {segments.map((seg, idx) => (
+          seg.points.length > 1 && (
+            <Line
+              key={`seg-${idx}`}
+              points={seg.points}
+              color={seg.color}
+              lineWidth={seg.width}
+              dashed={false}
+              transparent
+              opacity={seg.opacity}
+            />
+          )
+        ))}
+        {activeSegment && activeSegment.points.length > 1 && (
+          <Line
+            points={activeSegment.points}
+            color={activeSegment.color}
+            lineWidth={activeSegment.width}
+            dashed={false}
+            transparent
+            opacity={activeSegment.opacity}
+          />
+        )}
+      </>
     );
   };
 
