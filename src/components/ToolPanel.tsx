@@ -178,7 +178,29 @@ export const ToolPanel = ({
                 </p>
               </div>
             </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="surface" className="space-y-4 mt-4">
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium">Surface Type</h4>
+              <div className="grid gap-2">
+                {surfaces.map((surface) => (
+                  <Button
+                    key={surface.id}
+                    variant={surfaceType === surface.id ? "default" : "secondary"}
+                    onClick={() => onSurfaceChange(surface.id)}
+                    className="w-full justify-start h-auto p-3"
+                  >
+                    <div className="text-left">
+                      <div className="font-medium">{surface.name}</div>
+                      <div className="text-xs text-muted-foreground">{surface.texture}</div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <Separator />
 
