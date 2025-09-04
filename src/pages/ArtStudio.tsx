@@ -97,7 +97,8 @@ export const ArtStudio = () => {
         setActiveTool('mechanicalPencil');
         toast({ title: "Mechanical Pencil", description: "Precision mechanical pencil selected" });
         break;
-      case 'e':
+      case 'delete':
+      case 'backspace':
         setActiveTool('eraser');
         toast({ title: "Eraser Tool", description: "3D eraser with physics selected" });
         break;
@@ -133,8 +134,10 @@ export const ArtStudio = () => {
         toast({ title: "Roll Left", description: `Pencil roll: ${roll - 5}°` });
         break;
       case 'e':
-        setRoll(Math.min(45, roll + 5));
-        toast({ title: "Roll Right", description: `Pencil roll: ${roll + 5}°` });
+        if (!event.altKey) {
+          setRoll(Math.min(45, roll + 5));
+          toast({ title: "Roll Right", description: `Pencil roll: ${roll + 5}°` });
+        }
         break;
       case 'tab':
         event.preventDefault();
