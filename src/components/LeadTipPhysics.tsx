@@ -27,36 +27,26 @@ export class LeadTipGeometry {
   }
 
   private generateInitialGeometry(radius: number, height: number, segments: number) {
-    // Create cone-like LED tip with individual vertices
+    // Create realistic lead tip: tapered point transitioning to cylinder
     this.vertices = [];
     
-    // Tip vertex (point of cone) - pointing DOWN for correct orientation
+    const taperHeight = height * 0.7; // 70% of height is tapered
+    const cylinderHeight = height * 0.3; // 30% is cylindrical
+    const cylinderRadius = radius * 0.8; // Cylinder is slightly smaller than base
+    
+    // Tip vertex (sharp point) - pointing DOWN for correct orientation
     this.vertices.push({
       position: new THREE.Vector3(0, 0, 0),
       originalPosition: new THREE.Vector3(0, 0, 0),
       wear: 0,
-      hardness: 0.7 // Tip is softer
+      hardness: 0.6 // Tip is softer for realistic wear
     });
 
-    // Base circle vertices
-    for (let i = 0; i < segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      
-      this.vertices.push({
-        position: new THREE.Vector3(x, height, z),
-        originalPosition: new THREE.Vector3(x, height, z),
-        wear: 0,
-        hardness: 0.9 // Base is harder
-      });
-    }
-
-    // Create intermediate rings for more realistic wear
-    const rings = 3;
-    for (let ring = 1; ring <= rings; ring++) {
-      const ringHeight = (height * ring) / (rings + 1);
-      const ringRadius = radius * (1 - ring / (rings + 1));
+    // Tapered section - multiple rings from tip to cylinder
+    const taperRings = 4;
+    for (let ring = 1; ring <= taperRings; ring++) {
+      const ringHeight = (taperHeight * ring) / taperRings;
+      const ringRadius = cylinderRadius * (ring / taperRings); // Linear taper to cylinder radius
       
       for (let i = 0; i < segments; i++) {
         const angle = (i / segments) * Math.PI * 2;
@@ -67,7 +57,26 @@ export class LeadTipGeometry {
           position: new THREE.Vector3(x, ringHeight, z),
           originalPosition: new THREE.Vector3(x, ringHeight, z),
           wear: 0,
-          hardness: 0.8
+          hardness: 0.7 + (ring / taperRings) * 0.2 // Harder as we go up
+        });
+      }
+    }
+
+    // Cylindrical section - where lead sits in wooden tip
+    const cylinderRings = 2;
+    for (let ring = 1; ring <= cylinderRings; ring++) {
+      const ringHeight = taperHeight + (cylinderHeight * ring) / cylinderRings;
+      
+      for (let i = 0; i < segments; i++) {
+        const angle = (i / segments) * Math.PI * 2;
+        const x = Math.cos(angle) * cylinderRadius;
+        const z = Math.sin(angle) * cylinderRadius;
+        
+        this.vertices.push({
+          position: new THREE.Vector3(x, ringHeight, z),
+          originalPosition: new THREE.Vector3(x, ringHeight, z),
+          wear: 0,
+          hardness: 0.9 // Cylinder section is hardest
         });
       }
     }

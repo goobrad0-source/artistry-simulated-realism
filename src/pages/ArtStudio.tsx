@@ -99,8 +99,13 @@ export const ArtStudio = () => {
         break;
       case 'delete':
       case 'backspace':
-        setActiveTool('eraser');
-        toast({ title: "Eraser Tool", description: "3D eraser with physics selected" });
+        if (activeTool !== 'eraser') {
+          setActiveTool('eraser');
+          toast({ title: "Eraser Tool", description: "Pencil flipped! Physics-based erasing enabled" });
+        } else {
+          setActiveTool('pencil');
+          toast({ title: "Pencil Tool", description: "Back to drawing mode" });
+        }
         break;
       case '1':
         setSurfaceType('whiteboard');

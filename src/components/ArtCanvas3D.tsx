@@ -94,10 +94,9 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
         }}
       />
       
-      {/* Realistic wood tip around graphite (frustum with hole) */}
+      {/* Realistic wood tip around graphite - smaller taper behind lead cylinder */}
       <mesh position={[0, -0.85, 0]}>
-        {/* Frustum: top wide connects to body, bottom small leaves hole for graphite */}
-        <cylinderGeometry args={[0.04, 0.022, 0.2, 16]} />
+        <cylinderGeometry args={[0.04, 0.018, 0.2, 16]} />
         <meshPhysicalMaterial 
           color="#DEB887" 
           roughness={0.8}
@@ -589,14 +588,13 @@ const Scene = ({
       if (!(isOnSurface && hasPressure) && drawingActiveRef.current) {
         finalizeActiveSegment();
       }
-
-      }
     }
   };
 
   const handlePointerUp = () => {
     setIsDragging(false);
     setGrabOffset([0, 0, 0]);
+    finalizeActiveSegment(); // End current stroke segment
   };
 
   const renderTool = () => {
@@ -773,6 +771,7 @@ export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, gravity, angle,
             pressure={pressure}
             gravity={gravity}
             angle={angle}
+            roll={roll}
             isDrawing={isDrawing}
             surfaceType={surfaceType}
             mode={mode}
