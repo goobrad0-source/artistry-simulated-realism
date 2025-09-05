@@ -31,7 +31,7 @@ export const ArtStudio = () => {
   const [pressure, setPressure] = useState(0.5);
   const [angle, setAngle] = useState(0);
   const [roll, setRoll] = useState(0);
-  const [leadY, setLeadY] = useState(-0.98);
+  const [leadY, setLeadY] = useState(-1.03);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showToolPanel, setShowToolPanel] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);

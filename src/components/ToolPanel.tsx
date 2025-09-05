@@ -119,7 +119,7 @@ export const ToolPanel = ({
                 value={[leadY]}
                 onValueChange={(value) => onLeadYChange(value[0])}
                 max={-0.70}
-                min={-1.05}
+                min={-1.10}
                 step={0.005}
                 className="w-full"
               />

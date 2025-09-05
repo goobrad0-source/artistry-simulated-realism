@@ -75,7 +75,7 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
       {/* Advanced Lead tip with realistic wear tracking - aligned with pencil axis */}
       <LeadTip
         position={[0, leadY, 0]}
-        rotation={rotation}
+        rotation={[0, 0, 0]}
         pressure={pressure}
         isDrawing={isDrawing}
         surfaceY={-1}
@@ -96,7 +96,7 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
       
       {/* Realistic wood tip around graphite - smaller taper behind lead cylinder */}
       <mesh position={[0, -0.85, 0]}>
-        <cylinderGeometry args={[0.04, 0.018, 0.2, 16]} />
+        <cylinderGeometry args={[0.04, 0.008, 0.2, 16]} />
         <meshPhysicalMaterial 
           color="#DEB887" 
           roughness={0.8}
