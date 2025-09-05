@@ -25,7 +25,7 @@ interface CanvasSurface {
   roughness: number;
 }
 
-const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, canDraw, onDrawPoint }: Tool3DProps & { roll?: number; canDraw?: boolean; onDrawPoint?: (point: THREE.Vector3) => void }) => {
+const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, canDraw, onDrawPoint, leadY = -0.98 }: Tool3DProps & { roll?: number; canDraw?: boolean; onDrawPoint?: (point: THREE.Vector3) => void; leadY?: number }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const tipRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -74,7 +74,7 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
       
       {/* Advanced Lead tip with realistic wear tracking - aligned with pencil axis */}
       <LeadTip
-        position={[0, -0.65, 0]}
+        position={[0, leadY, 0]}
         rotation={rotation}
         pressure={pressure}
         isDrawing={isDrawing}
@@ -283,7 +283,8 @@ const Scene = ({
   isDrawing, 
   surfaceType,
   mode,
-  roll
+  roll,
+  leadY
 }: {
   activeTool: Tool3DProps['type'];
   pressure: number;
@@ -293,6 +294,7 @@ const Scene = ({
   surfaceType: CanvasSurface['type'];
   mode: InteractionMode;
   roll: number;
+  leadY: number;
 }) => {
   const { camera, raycaster, pointer, scene } = useThree();
   const [toolPosition, setToolPosition] = useState<[number, number, number]>([0, 0.5, 0]);
@@ -617,13 +619,13 @@ const Scene = ({
       switch (activeTool) {
         case 'pencil': {
           const rot = toolRotation;
-          return <Pencil3D {...baseProps} rotation={rot} roll={0} canDraw={canDraw} onDrawPoint={onDrawPoint} />;
+          return <Pencil3D {...baseProps} rotation={rot} roll={0} canDraw={canDraw} onDrawPoint={onDrawPoint} leadY={leadY} />;
         }
         case 'brush':
           return <Brush3D {...baseProps} />;
         case 'eraser': {
           const rot: [number, number, number] = [toolRotation[0] + Math.PI, toolRotation[1], toolRotation[2]];
-          return <Pencil3D {...baseProps} rotation={rot} roll={0} canDraw={canDraw} onDrawPoint={onDrawPoint} />;
+          return <Pencil3D {...baseProps} rotation={rot} roll={0} canDraw={canDraw} onDrawPoint={onDrawPoint} leadY={leadY} />;
         }
         default:
           return <Pencil3D {...baseProps} canDraw={canDraw} onDrawPoint={onDrawPoint} />;
@@ -738,9 +740,10 @@ interface ArtCanvas3DProps {
   angle: number;
   roll: number;
   mode: InteractionMode;
+  leadY: number;
 }
 
-export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, gravity, angle, roll, mode }: ArtCanvas3DProps) => {
+export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, gravity, angle, roll, mode, leadY }: ArtCanvas3DProps) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const { toast } = useToast();
 
@@ -775,6 +778,7 @@ export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, gravity, angle,
             isDrawing={isDrawing}
             surfaceType={surfaceType}
             mode={mode}
+            leadY={leadY}
           />
         </Suspense>
       </Canvas>

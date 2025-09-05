@@ -31,6 +31,7 @@ export const ArtStudio = () => {
   const [pressure, setPressure] = useState(0.5);
   const [angle, setAngle] = useState(0);
   const [roll, setRoll] = useState(0);
+  const [leadY, setLeadY] = useState(-0.98);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showToolPanel, setShowToolPanel] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -286,6 +287,8 @@ export const ArtStudio = () => {
             onAngleChange={setAngle}
             surfaceType={surfaceType}
             onSurfaceChange={handleSurfaceChange}
+            leadY={leadY}
+            onLeadYChange={setLeadY}
           />
         </div>
 
@@ -299,6 +302,7 @@ export const ArtStudio = () => {
             angle={angle}
             roll={roll}
             mode={mode}
+            leadY={leadY}
           />
         </div>
 

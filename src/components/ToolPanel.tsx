@@ -7,16 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToolType } from './ToolBar';
 import { 
-  Pencil, 
-  Brush, 
-  PenTool, 
-  Palette, 
   Settings,
   RotateCw,
-  Zap,
-  Layers,
-  Scissors,
-  Eraser as EraserIcon
+  Zap
 } from 'lucide-react';
 
 interface ToolPanelProps {
@@ -28,6 +21,8 @@ interface ToolPanelProps {
   onAngleChange: (angle: number) => void;
   surfaceType: 'whiteboard' | 'canvas' | 'paper';
   onSurfaceChange: (surface: 'whiteboard' | 'canvas' | 'paper') => void;
+  leadY: number;
+  onLeadYChange: (y: number) => void;
 }
 
 export const ToolPanel = ({
@@ -38,7 +33,9 @@ export const ToolPanel = ({
   angle,
   onAngleChange,
   surfaceType,
-  onSurfaceChange
+  onSurfaceChange,
+  leadY,
+  onLeadYChange
 }: ToolPanelProps) => {
   const [leadHardness, setLeadHardness] = useState(2); // 0=8B (soft) to 4=4H (hard)
   const [brushSize, setBrushSize] = useState(5);
@@ -46,14 +43,6 @@ export const ToolPanel = ({
   const [damping, setDamping] = useState(0.85);
   const [elasticity, setElasticity] = useState(1.2);
 
-  const tools = [
-    { id: 'pencil' as const, icon: Pencil, name: 'Pencil', description: 'Realistic graphite pencil' },
-    { id: 'mechanicalPencil' as const, icon: Scissors, name: 'Mechanical Pencil', description: 'Precision mechanical pencil' },
-    { id: 'pen' as const, icon: PenTool, name: 'Pen', description: 'Professional ink pen' },
-    { id: 'brush' as const, icon: Brush, name: 'Brush', description: 'Artist paint brush' },
-    { id: 'crayon' as const, icon: Palette, name: 'Crayon', description: 'Wax crayon tool' },
-    { id: 'eraser' as const, icon: EraserIcon, name: 'Eraser', description: '3D eraser with wear' },
-  ];
 
   const surfaces = [
     { id: 'whiteboard' as const, name: 'Whiteboard', texture: 'Smooth, glossy surface' },
@@ -66,34 +55,6 @@ export const ToolPanel = ({
   return (
     <Card className="w-80 h-full ui-panel custom-scrollbar overflow-y-auto">
       <div className="p-4 space-y-6">
-        {/* Tool Selection */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Settings className="w-4 h-4" />
-            3D Tools
-          </h3>
-          <div className="grid gap-2">
-            {tools.map((tool) => {
-              const Icon = tool.icon;
-              return (
-                <Button
-                  key={tool.id}
-                  variant={activeTool === tool.id ? "default" : "secondary"}
-                  onClick={() => onToolChange(tool.id)}
-                  className="w-full justify-start h-auto p-3 tool-transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5" />
-                    <div className="text-left">
-                      <div className="font-medium">{tool.name}</div>
-                      <div className="text-xs text-muted-foreground">{tool.description}</div>
-                    </div>
-                  </div>
-                </Button>
-              );
-            })}
-          </div>
-        </div>
 
         <Separator />
 
@@ -144,6 +105,25 @@ export const ToolPanel = ({
                 step={0.01}
                 className="w-full"
               />
+            </div>
+
+            {/* Lead Tip Y Position */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  Lead Y Position
+                </label>
+                <Badge variant="secondary">{leadY.toFixed(2)}</Badge>
+              </div>
+              <Slider
+                value={[leadY]}
+                onValueChange={(value) => onLeadYChange(value[0])}
+                max={-0.70}
+                min={-1.05}
+                step={0.005}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">Adjust the graphite tip depth along the pencil axis.</p>
             </div>
 
             {/* Physics Properties */}
