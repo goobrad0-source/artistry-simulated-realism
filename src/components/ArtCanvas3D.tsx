@@ -95,7 +95,7 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
       />
       
       {/* Realistic wood tip around graphite - smaller taper behind lead cylinder */}
-      <mesh position={[0, -0.85, 0]}>
+      <mesh position={[0, -0.98, 0]}>
         <cylinderGeometry args={[0.04, 0.008, 0.2, 16]} />
         <meshPhysicalMaterial 
           color="#DEB887" 
@@ -382,7 +382,7 @@ const Scene = ({
   // Physics constants
   const GRAVITY = -0.008;
   const SURFACE_Y = -1; // Surface position
-  const TOOL_LENGTH = 0.96; // Tool length (to tip) for collision (matches LeadTip position)
+  const TOOL_LENGTH = 1.03; // Tool length (to tip) for collision (matches LeadTip position)
   const ELASTIC_DAMPING = 0.85;
   const COLLISION_STIFFNESS = 0.3;
   const FRICTION = 0.95;

@@ -5,6 +5,7 @@ import { ToolBar, RightSidebar, ToolType, InteractionMode } from '@/components/T
 import { Timeline } from '@/components/Timeline';
 import { Palette3DCanvas } from '@/components/Palette3D';
 import { usePhysicsEngine } from '@/components/PhysicsEngine';
+import { PleinAirLogo } from '@/components/PleinAirLogo';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -221,9 +222,7 @@ export const ArtStudio = () => {
       {/* Top Bar */}
       <div className="h-16 ui-panel border-b border-border flex items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <Badge variant="secondary" className="font-mono text-xs">
-            QUANTUM ART STUDIO
-          </Badge>
+          <PleinAirLogo />
           <Badge variant="outline">
             {activeTool.toUpperCase()} - {mode.toUpperCase()}
           </Badge>

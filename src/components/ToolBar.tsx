@@ -60,16 +60,6 @@ export const ToolBar = ({
         {isLeftPanelOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
       </Button>
 
-      {/* Mode Indicator */}
-      <div className="px-2 mb-4">
-        <Badge 
-          variant={mode === 'tool' ? 'default' : 'secondary'}
-          className="text-xs px-1"
-        >
-          {mode.toUpperCase()}
-        </Badge>
-      </div>
-
       {/* Tools */}
       <div className="space-y-1 px-2 flex-1">
         {tools.map((tool) => {
