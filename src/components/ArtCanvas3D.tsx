@@ -83,7 +83,6 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
             isDrawing={isDrawing}
             surfaceY={-1}
             roll={roll || 0}
-            toolWorldMatrix={groupRef.current?.matrixWorld}
             onContact={(contacts) => {
               if (contacts.length > 0 && canDraw && onDrawPoint) {
                 // Use the lowest/closest contact point for drawing
@@ -98,7 +97,7 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
           />
           
           {/* Realistic wood tip around graphite - positioned relative to lead tip */}
-          <mesh position={[0, leadY + 0.05, 0]}>
+          <mesh position={[0, -0.85, 0]}>
             <cylinderGeometry args={[0.04, 0.008, 0.2, 16]} />
             <meshPhysicalMaterial 
               color="#DEB887" 
@@ -641,7 +640,7 @@ const Scene = ({
       <group 
         ref={toolRef}
         position={toolPosition}
-        rotation={toolRotation}
+        
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
