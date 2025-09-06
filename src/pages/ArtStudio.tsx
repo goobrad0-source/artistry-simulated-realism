@@ -32,7 +32,7 @@ export const ArtStudio = () => {
   const [pressure, setPressure] = useState(0.5);
   const [angle, setAngle] = useState(0);
   const [roll, setRoll] = useState(0);
-  const [leadY, setLeadY] = useState(-1.03);
+  const [leadY, setLeadY] = useState(-0.98);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showToolPanel, setShowToolPanel] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -324,18 +324,6 @@ export const ArtStudio = () => {
         onClose={() => setShowPalette(false)}
       />
 
-      {/* Status Bar */}
-      <div className="absolute bottom-20 left-0 right-0 h-6 ui-panel/90 backdrop-blur-sm border-t border-border flex items-center justify-between px-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-4">
-          <span>Mode: {mode} | Physics: {isPlaying ? 'ACTIVE' : 'PAUSED'}</span>
-          <span>Surface: {surfaceType} | Gravity: {Math.round(gravity * 100)}% | Roll: {roll}°</span>
-          {gravity <= 0 && <span className="text-primary">✈️ LIFTED OFF</span>}
-        </div>
-        <div className="flex items-center gap-4">
-          <span>SPACE=Switch Mode | P=Pencil | B=Brush | E=Eraser</span>
-          <span>Q/E=Roll | Scroll=Pressure | Ctrl+S=Save</span>
-        </div>
-      </div>
     </div>
   );
 };

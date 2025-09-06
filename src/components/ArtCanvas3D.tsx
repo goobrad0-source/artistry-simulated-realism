@@ -327,7 +327,7 @@ const Scene = ({
   const intersectionPoint = useRef<THREE.Vector3>(new THREE.Vector3());
   const lastToolPosition = useRef<[number, number, number]>([0, 0.5, 0]);
   const lastMoveTime = useRef<number>(0);
-  
+  const lastDrawTimeRef = useRef<number>(0);
   // Stroke style helpers and drawing point handler
   const getSurfaceEraseColor = () => {
     switch (surfaceType) {
@@ -367,21 +367,41 @@ const Scene = ({
 
   const handleDrawPoint = (point: THREE.Vector3) => {
     const eff = Math.min(1, pressure + surfaceContactForce * 0.05);
+    const style = computeStrokeStyle(activeTool, eff);
+
     if (!drawingActiveRef.current || !activeSegment) {
-      const style = computeStrokeStyle(activeTool, eff);
       setActiveSegment({ points: [point.clone()], ...style, tool: activeTool });
       drawingActiveRef.current = true;
+      lastDrawTimeRef.current = performance.now();
       return;
     }
+
+    // Always keep style in sync for live pressure/opacity changes
+    setActiveSegment(prev => (prev ? { ...prev, width: style.width, opacity: style.opacity, color: style.color } : prev));
+
     setActiveSegment(prev => {
       if (!prev) return prev;
       const last = prev.points[prev.points.length - 1];
-      if (!last || last.distanceTo(point) > 0.005) {
+      const now = performance.now();
+      const timeSince = now - (lastDrawTimeRef.current || 0);
+      const movedEnough = !last || last.distanceTo(point) > 0.001;
+      const timeDue = timeSince > 40; // add point at least every 40ms while in contact (for angle-only changes)
+      if (movedEnough || timeDue) {
+        lastDrawTimeRef.current = now;
         return { ...prev, points: [...prev.points, point.clone()] };
       }
       return prev;
     });
   };
+
+  // Live-update active segment style when pressure changes
+  useEffect(() => {
+    if (drawingActiveRef.current && activeSegment) {
+      const eff = Math.min(1, pressure + surfaceContactForce * 0.05);
+      const style = computeStrokeStyle(activeTool, eff);
+      setActiveSegment(prev => (prev ? { ...prev, width: style.width, opacity: style.opacity, color: style.color } : prev));
+    }
+  }, [pressure, surfaceContactForce, activeTool, activeSegment]);
 
   // Physics constants
   const GRAVITY = -0.008;
@@ -399,22 +419,11 @@ const Scene = ({
     camera.lookAt(0, 0, 0);
   }, [camera]);
 
-  // Helper function to calculate actual tip position based on angle and position
+  // Helper: calculate actual tip world position using full Euler rotation (XYZ)
   const calculateTipPosition = (toolPos: [number, number, number], toolRot: [number, number, number]) => {
-    // Convert rotation to radians
-    const angleX = toolRot[0];
-    const angleZ = toolRot[2];
-    
-    // Calculate tip offset from tool center based on angle
-    const tipOffsetY = -TOOL_LENGTH * Math.cos(angleX) * Math.cos(angleZ);
-    const tipOffsetX = TOOL_LENGTH * Math.sin(angleZ);
-    const tipOffsetZ = -TOOL_LENGTH * Math.sin(angleX) * Math.cos(angleZ);
-    
-    return [
-      toolPos[0] + tipOffsetX,
-      toolPos[1] + tipOffsetY,
-      toolPos[2] + tipOffsetZ
-    ] as [number, number, number];
+    const euler = new THREE.Euler(toolRot[0], toolRot[1], toolRot[2], 'XYZ');
+    const offset = new THREE.Vector3(0, -TOOL_LENGTH, 0).applyEuler(euler);
+    return [toolPos[0] + offset.x, toolPos[1] + offset.y, toolPos[2] + offset.z] as [number, number, number];
   };
 
   // Physics simulation loop
@@ -428,7 +437,7 @@ const Scene = ({
     let newRotation: [number, number, number] = [...toolRotation];
 
     // Update angle from props (user input)
-    newRotation[2] = angle;
+    newRotation[0] = angle;
 
     // Track movement for elastic azimuth
     if (isDragging && lastMoveTime.current !== 0) {
@@ -797,11 +806,6 @@ export const ArtCanvas3D = ({ activeTool, surfaceType, pressure, gravity, angle,
         </div>
       </div>
       
-      <div className="absolute bottom-4 right-4 ui-panel rounded-lg p-3">
-        <div className="text-xs text-muted-foreground">
-          Scroll: Adjust Pressure | Click+Drag: Rotate View
-        </div>
-      </div>
     </div>
   );
 };
