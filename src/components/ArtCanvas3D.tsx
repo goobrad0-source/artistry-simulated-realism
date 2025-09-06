@@ -39,70 +39,75 @@ const Pencil3D = ({ position, rotation, pressure, angle, isDrawing, mode, roll, 
   });
 
   return (
-    <group ref={groupRef} position={position} rotation={rotation}>
-      {/* Pencil body - wooden shaft */}
-      <mesh ref={meshRef}>
-        <cylinderGeometry args={[0.04, 0.04, 1.5, 8]} />
-        <meshPhysicalMaterial 
-          color="#D2691E" 
-          roughness={0.8}
-          metalness={0.1}
-          clearcoat={0.2}
-        />
-      </mesh>
-      
-      {/* Metal ferrule */}
-      <mesh position={[0, 0.6, 0]}>
-        <cylinderGeometry args={[0.045, 0.045, 0.2, 8]} />
-        <meshPhysicalMaterial 
-          color="#C0C0C0" 
-          roughness={0.2}
-          metalness={0.9}
-          clearcoat={0.8}
-        />
-      </mesh>
-      
-      {/* Eraser */}
-      <mesh position={[0, 0.75, 0]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.1, 8]} />
-        <meshPhysicalMaterial 
-          color="#FFB6C1" 
-          roughness={0.9}
-          metalness={0.0}
-        />
-      </mesh>
-      
-      {/* Advanced Lead tip with realistic wear tracking - aligned with pencil axis */}
-      <LeadTip
-        position={[0, leadY, 0]}
-        rotation={[0, 0, 0]}
-        pressure={pressure}
-        isDrawing={isDrawing}
-        surfaceY={-1}
-        roll={roll || 0}
-        toolWorldMatrix={groupRef.current?.matrixWorld}
-        onContact={(contacts) => {
-          if (contacts.length > 0 && canDraw && onDrawPoint) {
-            // Use the lowest/closest contact point for drawing
-            const contact = contacts[0];
-            const drawPoint = new THREE.Vector3(contact.position.x, contact.position.y + 0.001, contact.position.z);
-            onDrawPoint(drawPoint);
-          }
-        }}
-        onWearUpdate={(avgWear, vertices) => {
-          // Handle wear updates for realistic physics
-        }}
-      />
-      
-      {/* Realistic wood tip around graphite - smaller taper behind lead cylinder */}
-      <mesh position={[0, -0.98, 0]}>
-        <cylinderGeometry args={[0.04, 0.008, 0.2, 16]} />
-        <meshPhysicalMaterial 
-          color="#DEB887" 
-          roughness={0.8}
-          metalness={0.0}
-        />
-      </mesh>
+    <group ref={groupRef} position={position}>
+      {/* Offset group to rotate around lead tip */}
+      <group rotation={rotation} position={[0, -leadY, 0]}>
+        <group position={[0, leadY, 0]}>
+          {/* Pencil body - wooden shaft */}
+          <mesh ref={meshRef}>
+            <cylinderGeometry args={[0.04, 0.04, 1.5, 8]} />
+            <meshPhysicalMaterial 
+              color="#D2691E" 
+              roughness={0.8}
+              metalness={0.1}
+              clearcoat={0.2}
+            />
+          </mesh>
+          
+          {/* Metal ferrule */}
+          <mesh position={[0, 0.6, 0]}>
+            <cylinderGeometry args={[0.045, 0.045, 0.2, 8]} />
+            <meshPhysicalMaterial 
+              color="#C0C0C0" 
+              roughness={0.2}
+              metalness={0.9}
+              clearcoat={0.8}
+            />
+          </mesh>
+          
+          {/* Eraser */}
+          <mesh position={[0, 0.75, 0]}>
+            <cylinderGeometry args={[0.04, 0.04, 0.1, 8]} />
+            <meshPhysicalMaterial 
+              color="#FFB6C1" 
+              roughness={0.9}
+              metalness={0.0}
+            />
+          </mesh>
+          
+          {/* Advanced Lead tip with realistic wear tracking - aligned with pencil axis */}
+          <LeadTip
+            position={[0, leadY, 0]}
+            rotation={[0, 0, 0]}
+            pressure={pressure}
+            isDrawing={isDrawing}
+            surfaceY={-1}
+            roll={roll || 0}
+            toolWorldMatrix={groupRef.current?.matrixWorld}
+            onContact={(contacts) => {
+              if (contacts.length > 0 && canDraw && onDrawPoint) {
+                // Use the lowest/closest contact point for drawing
+                const contact = contacts[0];
+                const drawPoint = new THREE.Vector3(contact.position.x, contact.position.y + 0.001, contact.position.z);
+                onDrawPoint(drawPoint);
+              }
+            }}
+            onWearUpdate={(avgWear, vertices) => {
+              // Handle wear updates for realistic physics
+            }}
+          />
+          
+          {/* Realistic wood tip around graphite - positioned relative to lead tip */}
+          <mesh position={[0, leadY + 0.05, 0]}>
+            <cylinderGeometry args={[0.04, 0.008, 0.2, 16]} />
+            <meshPhysicalMaterial 
+              color="#DEB887" 
+              roughness={0.8}
+              metalness={0.0}
+            />
+          </mesh>
+        </group>
+      </group>
     </group>
   );
 };
@@ -382,7 +387,7 @@ const Scene = ({
   // Physics constants
   const GRAVITY = -0.008;
   const SURFACE_Y = -1; // Surface position
-  const TOOL_LENGTH = 1.03; // Tool length (to tip) for collision (matches LeadTip position)
+  const TOOL_LENGTH = Math.abs(leadY); // Tool length (to tip) for collision (matches LeadTip position)
   const ELASTIC_DAMPING = 0.85;
   const COLLISION_STIFFNESS = 0.3;
   const FRICTION = 0.95;
